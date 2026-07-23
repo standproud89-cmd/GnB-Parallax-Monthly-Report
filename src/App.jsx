@@ -1,19 +1,104 @@
 import React, { useState, useMemo, useEffect } from "react";
 import ExcelJS from "exceljs";
 import parallaxLogo from "./assets/parallax-logo.png";
+import gplumLogo from "./assets/gplum-logo.png";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, LabelList
 } from "recharts";
 
 // ---------- 고정 정의 ----------
-const PART_DEFS = [
-  { key: "partI", label: "Part I", kr: "Vocabulary" },
-  { key: "partII", label: "Part II", kr: "Listening" },
-  { key: "partIII", label: "Part III", kr: "Dictation" },
-  { key: "partIV", label: "Part IV", kr: "Reading" },
-  { key: "partV", label: "Part V", kr: "Writing" },
-];
+// 교재별 영역 구성 (교재구성 템플릿에서 반영, 권수와 무관하게 교재당 하나의 구성을 사용)
+const TEXTBOOK_PART_DEFS = {
+  "Susie's Day": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 10 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 6 },
+    { key: "part3", label: "Part III", kr: "Dictation", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Reading", max: 4 },
+    { key: "part5", label: "Part V", kr: "Writing", max: 14 },
+  ],
+  "Phonics Is Fun": [
+    { key: "part1", label: "Part I", kr: "Sounds", max: 6 },
+    { key: "part2", label: "Part II", kr: "Words", max: 18 },
+    { key: "part3", label: "Part III", kr: "Sentences", max: 6 },
+  ],
+  "Read Right L1": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 12 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 8 },
+    { key: "part3", label: "Part III", kr: "Reading", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Writing", max: 14 },
+  ],
+  "Phonics Buddy": [
+    { key: "part1", label: "Part I", kr: "Sounds", max: 6 },
+    { key: "part2", label: "Part II", kr: "Words", max: 18 },
+    { key: "part3", label: "Part III", kr: "Sentences", max: 6 },
+  ],
+  "Baby Bird's Adventure": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 10 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 6 },
+    { key: "part3", label: "Part III", kr: "Dictation", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Reading", max: 4 },
+    { key: "part5", label: "Part V", kr: "Writing", max: 14 },
+  ],
+  "Where's Coco?": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 10 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 6 },
+    { key: "part3", label: "Part III", kr: "Dictation", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Reading", max: 4 },
+    { key: "part5", label: "Part V", kr: "Writing", max: 14 },
+  ],
+  "Daily Talk L1": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 12 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 8 },
+    { key: "part3", label: "Part III", kr: "Reading", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Writing", max: 14 },
+  ],
+  "Mr.Grammar": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 6 },
+    { key: "part2", label: "Part II", kr: "Grammar", max: 18 },
+    { key: "part3", label: "Part III", kr: "Writing", max: 6 },
+  ],
+  "Listen to Me! L1": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 12 },
+    { key: "part2", label: "Part II", kr: "Listening Comprehension", max: 18 },
+    { key: "part3", label: "Part III", kr: "Dictation", max: 10 },
+  ],
+  "Here We Go!": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 12 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 8 },
+    { key: "part3", label: "Part III", kr: "Reading", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Writing", max: 14 },
+  ],
+  "Never Study Land": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 10 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 6 },
+    { key: "part3", label: "Part III", kr: "Dictation", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Reading", max: 4 },
+    { key: "part5", label: "Part V", kr: "Writing", max: 14 },
+  ],
+  "Read Right L2": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 12 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 8 },
+    { key: "part3", label: "Part III", kr: "Reading", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Writing", max: 14 },
+  ],
+  "What Do You Do?": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 10 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 6 },
+    { key: "part3", label: "Part III", kr: "Dictation", max: 6 },
+    { key: "part4", label: "Part IV", kr: "Reading", max: 4 },
+    { key: "part5", label: "Part V", kr: "Writing", max: 14 },
+  ],
+  "Daily Talk L2": [
+    { key: "part1", label: "Part I", kr: "Vocabulary", max: 12 },
+    { key: "part2", label: "Part II", kr: "Listening", max: 6 },
+    { key: "part3", label: "Part III", kr: "Reading", max: 4 },
+    { key: "part4", label: "Part IV", kr: "Writing", max: 18 },
+  ],
+};
+function getPartDefs(textbook) {
+  return TEXTBOOK_PART_DEFS[textbook] || TEXTBOOK_PART_DEFS["Susie's Day"];
+}
 
 const PARTICIPATION_DEFS = [
   { key: "attendance", label: "Attendance", kr: "출석" },
@@ -39,7 +124,7 @@ const TEXTBOOK_LEVELS = {
   "Baby Bird's Adventure": [1, 2, 3, 4],
   "Where's Coco?": [1, 2, 3, 4],
   "Daily Talk L1": [1, 2, 3, 4],
-  "Mr. Grammar": [1, 2, 3, 4],
+  "Mr.Grammar": [1, 2, 3, 4],
   "Here We Go!": [1, 2, 3, 4],
   "Never Study Land": [1, 2, 3, 4],
   "Read Right L2": [1, 2, 3, 4],
@@ -48,65 +133,69 @@ const TEXTBOOK_LEVELS = {
   "Phonics Is Fun": [1, 2, 3],
   "Listen to Me! L1": [1, 2, 3],
 };
-const TEXTBOOKS = Object.keys(TEXTBOOK_LEVELS);
+// 교재 목록은 항상 알파벳(가나다) 순으로 정렬해서 표시
+const TEXTBOOKS = Object.keys(TEXTBOOK_LEVELS).sort((a, b) => a.localeCompare(b));
 function textbookLabel(form) {
   return form.level ? `${form.textbook} ${form.level}권` : form.textbook;
 }
 
-// 영역별 만점은 교재 기준 고정값입니다. (Part I~V는 시험 만점, 그 외 항목은 10점 만점)
-const MAX_SCORES = { partI: 10, partII: 6, partIII: 6, partIV: 4, partV: 14 };
-const DEFAULT_MAX = 10;
-function getRowMax(key) {
-  return MAX_SCORES[key] !== undefined ? MAX_SCORES[key] : DEFAULT_MAX;
-}
+const DEFAULT_MAX = 10; // 참여도/태도/숙제 항목 공통 만점
 function clamp(value, max) {
   const n = Number(value);
   if (Number.isNaN(n)) return 0;
   return Math.min(Math.max(n, 0), max);
 }
 
-function makeStudent(i) {
+function makeStudent(i, partDefs) {
   const base = { id: i, name: "", comment: "" };
-  PART_DEFS.forEach((p) => (base[p.key] = 0));
+  (partDefs || []).forEach((p) => (base[p.key] = 0));
   PARTICIPATION_DEFS.forEach((p) => (base[p.key] = 0));
   BEHAVIOR_DEFS.forEach((p) => (base[p.key] = 0));
   HOMEWORK_DEFS.forEach((p) => (base[p.key] = 0));
   return base;
 }
 
-// 화면의 입력표와 동일한 행 구성 (라벨 / 만점 / 학생1 / 학생2 ...)
-const ROW_DEFS = [
-  ...PART_DEFS.map((p) => ({ label: `${p.label} (${p.kr})`, key: p.key, max: MAX_SCORES[p.key] })),
-  ...PARTICIPATION_DEFS.map((d) => ({ label: `${d.label} (${d.kr})`, key: d.key, max: DEFAULT_MAX })),
-  ...BEHAVIOR_DEFS.map((d) => ({ label: `${d.label} (${d.kr})`, key: d.key, max: DEFAULT_MAX })),
-  ...HOMEWORK_DEFS.map((d) => ({ label: d.label, key: d.key, max: DEFAULT_MAX })),
-];
+// 화면의 입력표와 동일한 행 구성 (라벨 / 만점 / 학생1 / 학생2 ...) - 선택된 교재의 partDefs 기준
+function buildRowDefs(partDefs) {
+  return [
+    ...partDefs.map((p) => ({ label: `${p.label} (${p.kr})`, key: p.key, max: p.max })),
+    ...PARTICIPATION_DEFS.map((d) => ({ label: `${d.label} (${d.kr})`, key: d.key, max: DEFAULT_MAX })),
+    ...BEHAVIOR_DEFS.map((d) => ({ label: `${d.label} (${d.kr})`, key: d.key, max: DEFAULT_MAX })),
+    ...HOMEWORK_DEFS.map((d) => ({ label: d.label, key: d.key, max: DEFAULT_MAX })),
+  ];
+}
+function buildGridFields(partDefs) {
+  return [
+    "name",
+    ...partDefs.map((p) => p.key),
+    ...PARTICIPATION_DEFS.map((d) => d.key),
+    ...BEHAVIOR_DEFS.map((d) => d.key),
+    ...HOMEWORK_DEFS.map((d) => d.key),
+    "comment",
+  ];
+}
 const SECTION_BREAK_ROWS = ["Participation (참여도)", "Behavior (태도)", "Homework (숙제)"];
 const COMMENT_ROW_LABEL = "Teacher Comments";
-const COMMENT_MAX_LEN = 140; // 최종 성적표 인쇄 시 축소된 코멘트 칸(고정 높이)에 딱 맞도록 제한
-// 입력표에서 Tab 키를 눌렀을 때 이동하는 순서 (한 학생 열 안에서 위→아래로 이동)
-const GRID_FIELDS = [
-  "name",
-  ...PART_DEFS.map((p) => p.key),
-  ...PARTICIPATION_DEFS.map((d) => d.key),
-  ...BEHAVIOR_DEFS.map((d) => d.key),
-  ...HOMEWORK_DEFS.map((d) => d.key),
-  "comment",
-];
+const COMMENT_MAX_LEN = 500; // 최종 성적표 인쇄 시 코멘트 칸(고정 높이 34mm)에 맞춘 상한
 
 const XLS_COLORS = {
   header: "FF111827", headerText: "FFFFFFFF",
-  label: "FFFECACA", labelText: "FF7F1D1D",
   max: "FFE5E7EB", maxText: "FF374151",
   input: "FFFEF9C3",
-  section: "FFFCA5A5",
+};
+// Step2 화면과 동일한 섹션별 색상 테마 (엑셀에도 동일하게 적용)
+const XLS_THEME = {
+  test: { label: "FFFECACA", labelText: "FF7F1D1D", section: "FFFCA5A5" },
+  participation: { label: "FFBFDBFE", labelText: "FF1E3A8A", section: "FF93C5FD" },
+  behavior: { label: "FFDDD6FE", labelText: "FF4C1D95", section: "FFC4B5FD" },
+  homework: { label: "FFFED7AA", labelText: "FF7C2D12", section: "FFFDBA74" },
 };
 function xlsFill(argb) {
   return { type: "pattern", pattern: "solid", fgColor: { argb } };
 }
 
 // 학생 데이터 배열 -> 화면 표와 동일한 구조 + 색상의 엑셀 파일로 다운로드 (템플릿 다운로드 / 결과 다운로드 겸용)
-async function exportStudentsToExcel(form, students, filenameSuffix = "") {
+async function exportStudentsToExcel(form, students, partDefs, filenameSuffix = "") {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("성적입력");
 
@@ -134,11 +223,11 @@ async function exportStudentsToExcel(form, students, filenameSuffix = "") {
     }
   });
 
-  function addDataRow(label, max, values) {
+  function addDataRow(label, max, values, theme) {
     const row = ws.addRow([label, max, ...values]);
     const labelCell = row.getCell(1);
-    labelCell.fill = xlsFill(XLS_COLORS.label);
-    labelCell.font = { bold: true, color: { argb: XLS_COLORS.labelText } };
+    labelCell.fill = xlsFill(theme.label);
+    labelCell.font = { bold: true, color: { argb: theme.labelText } };
     labelCell.alignment = { horizontal: "left", vertical: "middle" };
     const maxCell = row.getCell(2);
     maxCell.fill = xlsFill(XLS_COLORS.max);
@@ -151,27 +240,31 @@ async function exportStudentsToExcel(form, students, filenameSuffix = "") {
     });
     return row;
   }
-  function addSectionRow(label) {
+  function addSectionRow(label, theme) {
     const row = ws.addRow([label, "", ...students.map(() => "")]);
     row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      cell.fill = xlsFill(XLS_COLORS.section);
-      if (colNumber === 1) cell.font = { bold: true, color: { argb: XLS_COLORS.labelText } };
+      cell.fill = xlsFill(theme.section);
+      if (colNumber === 1) cell.font = { bold: true, color: { argb: theme.labelText } };
     });
     return row;
   }
 
-  PART_DEFS.forEach((p) => addDataRow(`${p.label} (${p.kr})`, MAX_SCORES[p.key], students.map((s) => s[p.key])));
-  addSectionRow("Participation (참여도)");
-  PARTICIPATION_DEFS.forEach((d) => addDataRow(`${d.label} (${d.kr})`, DEFAULT_MAX, students.map((s) => s[d.key])));
-  addSectionRow("Behavior (태도)");
-  BEHAVIOR_DEFS.forEach((d) => addDataRow(`${d.label} (${d.kr})`, DEFAULT_MAX, students.map((s) => s[d.key])));
-  addSectionRow("Homework (숙제)");
-  HOMEWORK_DEFS.forEach((d) => addDataRow(d.label, DEFAULT_MAX, students.map((s) => s[d.key])));
+  partDefs.forEach((p) => addDataRow(`${p.label} (${p.kr})`, p.max, students.map((s) => s[p.key]), XLS_THEME.test));
+  addSectionRow("Participation (참여도)", XLS_THEME.participation);
+  PARTICIPATION_DEFS.forEach((d) => addDataRow(`${d.label} (${d.kr})`, DEFAULT_MAX, students.map((s) => s[d.key]), XLS_THEME.participation));
+  addSectionRow("Behavior (태도)", XLS_THEME.behavior);
+  BEHAVIOR_DEFS.forEach((d) => addDataRow(`${d.label} (${d.kr})`, DEFAULT_MAX, students.map((s) => s[d.key]), XLS_THEME.behavior));
+  addSectionRow("Homework (숙제)", XLS_THEME.homework);
+  HOMEWORK_DEFS.forEach((d) => addDataRow(d.label, DEFAULT_MAX, students.map((s) => s[d.key]), XLS_THEME.homework));
 
-  const commentRow = addDataRow(COMMENT_ROW_LABEL, "", students.map((s) => s.comment || ""));
+  const commentRow = addDataRow(COMMENT_ROW_LABEL, "", students.map((s) => s.comment || ""), XLS_THEME.test);
   students.forEach((s, i) => {
     const cell = commentRow.getCell(3 + i);
     cell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
+    if (!s.comment) {
+      cell.value = `티쳐스 코멘트 (업로드시 ${COMMENT_MAX_LEN}자 제한)`;
+      cell.font = { italic: true, color: { argb: "FF9CA3AF" } };
+    }
     cell.dataValidation = {
       type: "textLength",
       operator: "lessThanOrEqual",
@@ -212,7 +305,7 @@ async function exportStudentsToExcel(form, students, filenameSuffix = "") {
 }
 
 // 화면 표와 동일한 구조의 엑셀 파일 -> 학생 데이터 배열로 변환
-async function parseExcelFile(file, onSuccess, onError) {
+async function parseExcelFile(file, partDefs, onSuccess, onError) {
   try {
     const buffer = await file.arrayBuffer();
     const wb = new ExcelJS.Workbook();
@@ -233,13 +326,13 @@ async function parseExcelFile(file, onSuccess, onError) {
       names.push(text === "(학생명 입력)" ? "" : text);
     }
     const students = names.map((n, i) => {
-      const s = makeStudent(i + 1);
+      const s = makeStudent(i + 1, partDefs);
       s.name = n;
       return s;
     });
 
     const labelMap = {};
-    ROW_DEFS.forEach((r) => { labelMap[r.label] = r; });
+    buildRowDefs(partDefs).forEach((r) => { labelMap[r.label] = r; });
 
     ws.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
@@ -248,7 +341,8 @@ async function parseExcelFile(file, onSuccess, onError) {
       if (label === COMMENT_ROW_LABEL) {
         students.forEach((s, i) => {
           const raw = row.getCell(3 + i).value;
-          const text = raw === null || raw === undefined ? "" : String(raw);
+          let text = raw === null || raw === undefined ? "" : String(raw);
+          if (text.startsWith("티쳐스 코멘트 (업로드시")) text = "";
           s.comment = text.slice(0, COMMENT_MAX_LEN);
         });
         return;
@@ -319,15 +413,25 @@ export default function App() {
     textbook: TEXTBOOKS[0],
     level: TEXTBOOK_LEVELS[TEXTBOOKS[0]][0],
   });
+  const partDefs = useMemo(() => getPartDefs(form.textbook), [form.textbook]);
   const [studentCount, setStudentCount] = useState(7);
   const [students, setStudents] = useState(
-    Array.from({ length: 7 }, (_, i) => makeStudent(i + 1))
+    Array.from({ length: 7 }, (_, i) => makeStudent(i + 1, partDefs))
   );
   const [reportIndex, setReportIndex] = useState(0);
 
+  // 교재가 바뀌면 영역 구성이 달라지므로 점수 필드를 새로 초기화 (이름/코멘트는 유지)
+  useEffect(() => {
+    setStudents((prev) => prev.map((s, i) => {
+      const fresh = makeStudent(i + 1, partDefs);
+      return { ...fresh, name: s.name, comment: s.comment };
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partDefs]);
+
   const totalMax = useMemo(
-    () => Object.values(MAX_SCORES).reduce((a, b) => a + Number(b || 0), 0),
-    []
+    () => partDefs.reduce((a, p) => a + Number(p.max || 0), 0),
+    [partDefs]
   );
 
   function updateStudentCount(n) {
@@ -336,7 +440,7 @@ export default function App() {
     setStudents((prev) => {
       const arr = [...prev];
       if (n > arr.length) {
-        for (let i = arr.length; i < n; i++) arr.push(makeStudent(i + 1));
+        for (let i = arr.length; i < n; i++) arr.push(makeStudent(i + 1, partDefs));
       } else {
         arr.length = n;
       }
@@ -361,13 +465,13 @@ export default function App() {
   // 반평균 계산
   const classAverages = useMemo(() => {
     const avg = {};
-    PART_DEFS.forEach((p) => {
+    partDefs.forEach((p) => {
       const vals = students.map((s) => Number(s[p.key]) || 0);
       const mean = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
-      avg[p.key] = MAX_SCORES[p.key] ? (mean / MAX_SCORES[p.key]) * 100 : 0;
+      avg[p.key] = p.max ? (mean / p.max) * 100 : 0;
     });
     return avg;
-  }, [students]);
+  }, [students, partDefs]);
 
   if (entry === null) {
     return <Landing onSelect={setEntry} />;
@@ -391,6 +495,7 @@ export default function App() {
       {step === 2 && (
         <Step2
           form={form}
+          partDefs={partDefs}
           studentCount={studentCount}
           updateStudentCount={updateStudentCount}
           students={students}
@@ -406,6 +511,7 @@ export default function App() {
       {step === 3 && (
         <Step3
           form={form}
+          partDefs={partDefs}
           totalMax={totalMax}
           students={students}
           classAverages={classAverages}
@@ -420,34 +526,68 @@ export default function App() {
 
 // ---------- 대문 (Final Test 음원 듣기 / 성적표 입력) ----------
 function Landing({ onSelect }) {
-  const cardStyle = {
-    background: "#fff", borderRadius: 18, border: "1px solid #e5e7eb",
-    padding: "40px 24px", textAlign: "center", cursor: "pointer",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.06)", transition: "box-shadow .15s, transform .15s",
+  const [hover, setHover] = useState(null);
+  const accent = "#eb574f";
+  const cardBase = {
+    position: "relative", background: "#fff", borderRadius: 24,
+    padding: "48px 32px", textAlign: "center", cursor: "pointer",
+    border: "1px solid #eef0f3", overflow: "hidden",
+    transition: "box-shadow .2s ease, transform .2s ease, border-color .2s ease",
   };
+  function cardStyle(key) {
+    const active = hover === key;
+    return {
+      ...cardBase,
+      boxShadow: active ? "0 20px 40px rgba(17,24,39,0.12)" : "0 2px 8px rgba(17,24,39,0.05)",
+      transform: active ? "translateY(-4px)" : "translateY(0)",
+      borderColor: active ? accent : "#eef0f3",
+    };
+  }
+  const kicker = { fontSize: 11, fontWeight: 800, letterSpacing: 2, color: accent, textTransform: "uppercase" };
+  const badgeStyle = {
+    width: 64, height: 64, borderRadius: 20, margin: "18px auto 0",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontSize: 30, background: "linear-gradient(135deg,#fff1f0,#ffe4e1)",
+  };
+
   return (
-    <div style={{ minHeight: "100vh", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ maxWidth: 640, width: "100%" }}>
-        <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <img src={parallaxLogo} alt="GnB Parallax" style={{ height: 34, margin: "0 auto 14px", display: "block" }} />
-          <div style={{ fontSize: 26, fontWeight: 800, color: "#111827" }}>Final Test</div>
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(circle at 50% -10%, #fff1f0 0%, #f3f4f6 55%)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+    }}>
+      <div style={{ maxWidth: 780, width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <img src={gplumLogo} alt="Gplum" style={{ height: 52, margin: "0 auto 18px", display: "block" }} />
+          <div style={{ fontSize: 30, fontWeight: 900, color: "#111827", letterSpacing: -0.5 }}>Final Test</div>
+          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6, fontWeight: 600 }}>원하시는 메뉴를 선택해주세요</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <button onClick={() => onSelect("audio")} style={cardStyle}
-            onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.1)")}
-            onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)")}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          <button
+            onClick={() => onSelect("audio")}
+            style={cardStyle("audio")}
+            onMouseEnter={() => setHover("audio")}
+            onMouseLeave={() => setHover(null)}
           >
-            <div style={{ fontSize: 36 }}>🎧</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#111827", marginTop: 12 }}>Final Test</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#6b7280", marginTop: 2 }}>음원 듣기</div>
+            <div style={badgeStyle}>🎧</div>
+            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>음원 듣기</div>
+            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>교재별 Final Test 음원을 재생합니다</div>
+            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "audio" ? accent : "#d1d5db" }}>시작하기 →</div>
           </button>
-          <button onClick={() => onSelect("grades")} style={cardStyle}
-            onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.1)")}
-            onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)")}
+
+          <button
+            onClick={() => onSelect("grades")}
+            style={cardStyle("grades")}
+            onMouseEnter={() => setHover("grades")}
+            onMouseLeave={() => setHover(null)}
           >
-            <div style={{ fontSize: 36 }}>📝</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: "#111827", marginTop: 12 }}>Final Test</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#6b7280", marginTop: 2 }}>성적표 입력</div>
+            <div style={badgeStyle}>📝</div>
+            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test (인쇄용)</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>성적표 입력</div>
+            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>학생 성적을 입력하고 성적표를 출력합니다</div>
+            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "grades" ? accent : "#d1d5db" }}>시작하기 →</div>
           </button>
         </div>
       </div>
@@ -459,6 +599,18 @@ function Landing({ onSelect }) {
 // 교재명 -> 폴더 슬러그 (public/audio/{slug}/{level}/{파일명})
 const AUDIO_FOLDER_SLUG = {
   "Susie's Day": "susies-day",
+  "Baby Bird's Adventure": "baby-bird-s-adventure",
+  "Daily Talk L1": "daily-talk-l1",
+  "Daily Talk L2": "daily-talk-l2",
+  "Here We Go!": "here-we-go",
+  "Listen to Me! L1": "listen-to-me-l1",
+  "Never Study Land": "never-study-land",
+  "Phonics Buddy": "phonics-buddy",
+  "Phonics Is Fun": "phonics-is-fun",
+  "Read Right L1": "read-right-l1",
+  "Read Right L2": "read-right-l2",
+  "What Do You Do?": "what-do-you-do",
+  "Where's Coco?": "where-s-coco",
 };
 // 교재명 -> 권 -> 트랙 파일명 목록 (파일명은 원본 그대로 유지)
 const AUDIO_LIBRARY = {
@@ -483,6 +635,74 @@ const AUDIO_LIBRARY = {
       "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3",
       "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3",
     ],
+  },
+  "Baby Bird's Adventure": {
+    1: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    2: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    3: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    4: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+  },
+  "Daily Talk L1": {
+    1: ["Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3"],
+    2: ["Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3"],
+    3: ["Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3"],
+    4: ["Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3"],
+  },
+  "Daily Talk L2": {
+    1: ["Part 1_Vocabulary_7.mp3", "Part 1_Vocabulary_8.mp3", "Part 1_Vocabulary_9.mp3", "Part 2_Listening_13.mp3", "Part 2_Listening_14.mp3", "Part 2_Listening_15.mp3", "Part 2_Listening_16.mp3", "Part 2_Listening_17.mp3", "Part 2_Listening_18.mp3"],
+    2: ["Part 1_Vocabulary_7.mp3", "Part 1_Vocabulary_8.mp3", "Part 1_Vocabulary_9.mp3", "Part 2_Listening_13.mp3", "Part 2_Listening_14.mp3", "Part 2_Listening_15.mp3", "Part 2_Listening_16.mp3", "Part 2_Listening_17.mp3", "Part 2_Listening_18.mp3"],
+    3: ["Part 1_Vocabulary_7.mp3", "Part 1_Vocabulary_8.mp3", "Part 1_Vocabulary_9.mp3", "Part 2_Listening_13.mp3", "Part 2_Listening_14.mp3", "Part 2_Listening_15.mp3", "Part 2_Listening_16.mp3", "Part 2_Listening_17.mp3", "Part 2_Listening_18.mp3"],
+  },
+  "Here We Go!": {
+    1: ["Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 1 - 7.mp3", "Part 1 - 8.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 2 - 21.mp3", "Part 2 - 22.mp3", "Part 3 - 27.mp3", "Part 3 - 28.mp3", "Part 3 - 29.mp3", "Part 3 - 30.mp3"],
+    2: ["Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 1 - 7.mp3", "Part 1 - 8.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 2 - 21.mp3", "Part 2 - 22.mp3", "Part 4 - 27.mp3", "Part 4 - 28.mp3", "Part 4 - 29.mp3", "Part 4 - 30.mp3"],
+    3: ["Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 1 - 7.mp3", "Part 1 - 8.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 2 - 21.mp3", "Part 2 - 22.mp3", "Part 4 - 27.mp3", "Part 4 - 28.mp3", "Part 4 - 29.mp3", "Part 4 - 30.mp3"],
+    4: ["Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 1 - 7.mp3", "Part 1 - 8.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 2 - 21.mp3", "Part 2 - 22.mp3", "Part 4 - 27.mp3", "Part 4 - 28.mp3", "Part 4 - 29.mp3", "Part 4 - 30.mp3"],
+  },
+  "Listen to Me! L1": {
+    1: ["Part 1 - 1.mp3", "Part 1 - 2.mp3", "Part 1 - 3.mp3", "Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 1 - 7.mp3", "Part 1 - 8.mp3", "Part 1 - 9.mp3", "Part 1 - 10.mp3", "Part 1 - 11.mp3", "Part 1 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 2 - 21.mp3", "Part 2 - 22.mp3", "Part 2 - 23.mp3", "Part 2 - 24~26.mp3", "Part 2 - 27~30.mp3", "Part 3 - 31.mp3", "Part 3 - 32.mp3", "Part 3 - 33.mp3", "Part 3 - 34.mp3", "Part 3 - 35.mp3", "Part 3 - 36.mp3", "Part 3 - 37.mp3", "Part 3 - 38.mp3", "Part 3 - 39.mp3", "Part 3 - 40.mp3"],
+    2: ["Part 1-1.mp3", "Part 1-2.mp3", "Part 1-3.mp3", "Part 1-4.mp3", "Part 1-5.mp3", "Part 1-6.mp3", "Part 1-7.mp3", "Part 1-8.mp3", "Part 1-9.mp3", "Part 1-10.mp3", "Part 1-11.mp3", "Part 1-12.mp3", "Part 2-13.mp3", "Part 2-14.mp3", "Part 2-15.mp3", "Part 2-16.mp3", "Part 2-17.mp3", "Part 2-18.mp3", "Part 2-19.mp3", "Part 2-20.mp3", "Part 2-21.mp3", "Part 2-22.mp3", "Part 2-23.mp3", "Part 2-24~26.mp3", "Part 2-25~30.mp3", "Part 3-31.mp3", "Part 3-32.mp3", "Part 3-33.mp3", "Part 3-34.mp3", "Part 3-35.mp3", "Part 3-36.mp3", "Part 3-37.mp3", "Part 3-38.mp3", "Part 3-39.mp3", "Part 3-40.mp3"],
+    3: ["Part 1-1.mp3", "Part 1-2.mp3", "Part 1-3.mp3", "Part 1-4.mp3", "Part 1-5.mp3", "Part 1-6.mp3", "Part 1-7.mp3", "Part 1-8.mp3", "Part 1-9.mp3", "Part 1-10.mp3", "Part 1-11.mp3", "Part 1-12.mp3", "Part 2-13.mp3", "Part 2-14.mp3", "Part 2-15.mp3", "Part 2-16.mp3", "Part 2-17.mp3", "Part 2-18.mp3", "Part 2-19.mp3", "Part 2-20.mp3", "Part 2-21.mp3", "Part 2-22.mp3", "Part 2-23.mp3", "Part 2-24~26.mp3", "Part 2-25~30.mp3", "Part 3-31.mp3", "Part 3-32.mp3", "Part 3-33.mp3", "Part 3-34.mp3", "Part 3-35.mp3", "Part 3-36.mp3", "Part 3-37.mp3", "Part 3-38.mp3", "Part 3-39.mp3", "Part 3-40.mp3"],
+  },
+  "Never Study Land": {
+    1: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    2: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    3: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    4: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+  },
+  "Phonics Buddy": {
+    1: ["Part 1-1.mp3", "Part 1-2.mp3", "Part 1-3.mp3", "Part 2-7.mp3", "Part 2-8.mp3", "Part 2-9.mp3", "Part 2-10.mp3", "Part 2-11.mp3", "Part 2-12.mp3", "Part 2-17.mp3", "Part 2-18.mp3", "Part 2-19.mp3", "Part 2-20.mp3", "Part 3-25.mp3", "Part 3-26.mp3", "Part 3-27.mp3", "Part 3-28.mp3", "Part 3-29.mp3", "Part 3-30.mp3"],
+    2: ["Part 1 - 1.mp3", "Part 1 - 2.mp3", "Part 1 - 3.mp3", "Part 2 - 7.mp3", "Part 2 - 8.mp3", "Part 2 - 9.mp3", "Part 2 - 10.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 3 - 25.mp3", "Part 3 - 26.mp3", "Part 3 - 27.mp3", "Part 3 - 28.mp3", "Part 3 - 29.mp3", "Part 3 - 30.mp3"],
+    3: ["Part 1 - 1.mp3", "Part 1 - 2.mp3", "Part 1 - 3.mp3", "Part 2 - 7.mp3", "Part 2 - 8.mp3", "Part 2 - 9.mp3", "Part 2 - 10.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 3 - 25.mp3", "Part 3 - 26.mp3", "Part 3 - 27.mp3", "Part 3 - 28.mp3", "Part 3 - 29.mp3", "Part 3 - 30.mp3"],
+    4: ["Part 1 - 01.mp3", "Part 1 - 02.mp3", "Part 1 - 03.mp3", "Part 2 - 07.mp3", "Part 2 - 08.mp3", "Part 2 - 09.mp3", "Part 2 - 10.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 3 - 25.mp3", "Part 3 - 26.mp3", "Part 3 - 27.mp3", "Part 3 - 28.mp3", "Part 3 - 29.mp3", "Part 3 - 30.mp3"],
+  },
+  "Phonics Is Fun": {
+    1: ["1.mp3", "2.mp3", "3.mp3", "4.mp3", "9. window.mp3", "10. television.mp3", "11. jam.mp3", "12. queen.mp3", "13. exact.mp3", "14. house.mp3", "21. rocket.mp3", "22. quiz.mp3", "23. birthday.mp3", "24. pitcher.mp3", "25.city.mp3", "26. leaf.mp3", "27. giant.mp3", "28. lemon.mp3", "33.mp3", "34.mp3", "35.mp3", "36.mp3", "37.mp3", "38..mp3", "39.mp3", "40.mp3"],
+    2: ["1.mp3", "2.mp3", "3.mp3", "4.mp3", "9. kick.mp3", "10. mat.mp3", "11. sauce.mp3", "12. park.mp3", "13. style.mp3", "14. town.mp3", "21. top.mp3", "22. sea.mp3", "23. rain.mp3", "24. boat.mp3", "25. fit.mp3", "26. home.mp3", "27. clerk.mp3", "28. garden.mp3", "33.mp3", "34.mp3", "35.mp3", "36.mp3", "37.mp3", "38.mp3", "39.mp3", "40.mp3"],
+    3: ["1.mp3", "2.mp3", "3.mp3", "4.mp3", "9. white.mp3", "10. television .mp3", "11. enjoy.mp3", "12. couple.mp3", "13. boat.mp3", "14. tour.mp3", "21. monkey.mp3", "22. bird.mp3", "23. rain.mp3", "24. plane.mp3", "25. pin.mp3", "26. cube.mp3", "27. hair.mp3", "28. snow.mp3", "33.mp3", "34.mp3", "35.mp3", "36.mp3", "37.mp3", "38.mp3", "39.mp3", "40.mp3"],
+  },
+  "Read Right L1": {
+    1: ["Part 1-9.mp3", "Part 1-10.mp3", "Part 1-11.mp3", "Part 1-12.mp3", "Part 2-13.mp3", "Part 2-14.mp3", "Part 2-15.mp3", "Part 2-16.mp3", "Part 2-17.mp3", "Part 2-18.mp3", "Part 2-19.mp3", "Part 2-20.mp3"],
+    2: ["Part 1 - 9.mp3", "Part 1 - 10.mp3", "Part 1 - 11.mp3", "Part 1 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3"],
+    3: ["Part 1 - 9.mp3", "Part 1 - 10.mp3", "Part 1 - 11.mp3", "Part 1 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3"],
+    4: ["Part 1 - 09.mp3", "Part 1 - 10.mp3", "Part 1 - 11.mp3", "Part 1 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3"],
+  },
+  "Read Right L2": {
+    1: ["Part 1-9.mp3", "Part 1-10.mp3", "Part 1-11.mp3", "Part 1-12.mp3", "Part 2-13.mp3", "Part 2-14.mp3", "Part 2-15.mp3", "Part 2-16.mp3", "Part 2-17.mp3", "Part 2-18.mp3", "Part 2-19.mp3", "Part 2-20.mp3"],
+    2: ["Part 1-9.mp3", "Part 1-10.mp3", "Part 1-11.mp3", "Part 1-12.mp3", "Part 2-13.mp3", "Part 2-14.mp3", "Part 2-15.mp3", "Part 2-16.mp3", "Part 2-17.mp3", "Part 2-18.mp3", "Part 2-19.mp3", "Part 2-20.mp3"],
+    3: ["Part 1-9.mp3", "Part 1-10.mp3", "Part 1-11.mp3", "Part 1-12.mp3", "Part 2-13.mp3", "Part 2-14.mp3", "Part 2-15.mp3", "Part 2-16.mp3", "Part 2-17.mp3", "Part 2-18.mp3", "Part 2-19.mp3", "Part 2-20.mp3"],
+    4: ["Part 1-9.mp3", "Part 1-10.mp3", "Part 1-11.mp3", "Part 1-12.mp3", "Part 2-13.mp3", "Part 2-14.mp3", "Part 2-15.mp3", "Part 2-16.mp3", "Part 2-17.mp3", "Part 2-18.mp3", "Part 2-19.mp3", "Part 2-20.mp3"],
+  },
+  "What Do You Do?": {
+    1: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    2: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    3: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+  },
+  "Where's Coco?": {
+    1: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    2: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    3: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    4: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "22.mp3"],
   },
 };
 function audioTrackUrl(textbook, level, filename) {
@@ -519,7 +739,7 @@ function AudioLevelPicker({ onPick, onHome }) {
         <button onClick={onHome} style={secondaryBtn}>← 처음으로</button>
         <div style={{ fontSize: 20, fontWeight: 800, margin: "18px 0 14px", color: "#111827" }}>Final Test 음원 듣기</div>
         <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", padding: "6px 20px" }}>
-          {TEXTBOOKS.map((t) => {
+          {TEXTBOOKS.filter((t) => t !== "Mr.Grammar").map((t) => {
             const levels = TEXTBOOK_LEVELS[t] || [];
             return (
               <div key={t} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
@@ -560,13 +780,26 @@ function AudioLevelPicker({ onPick, onHome }) {
 function AudioPlayer({ textbook, level, onBack, onHome }) {
   const files = (AUDIO_LIBRARY[textbook] && AUDIO_LIBRARY[textbook][level]) || [];
   const audioRef = React.useRef(null);
+  const nextTimerRef = React.useRef(null);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playAllMode, setPlayAllMode] = useState(false);
+  const [waitingNext, setWaitingNext] = useState(false);
+
+  const TRACK_GAP_MS = 3000; // 전체 재생 시 트랙 사이 대기 시간
+
+  function clearPendingNext() {
+    if (nextTimerRef.current) {
+      clearTimeout(nextTimerRef.current);
+      nextTimerRef.current = null;
+    }
+    setWaitingNext(false);
+  }
 
   function playIndex(idx, allMode) {
     const audio = audioRef.current;
     if (!audio || idx < 0 || idx >= files.length) return;
+    clearPendingNext();
     setCurrentIndex(idx);
     setPlayAllMode(allMode);
     audio.src = audioTrackUrl(textbook, level, files[idx]);
@@ -575,7 +808,13 @@ function AudioPlayer({ textbook, level, onBack, onHome }) {
   }
   function handleEnded() {
     if (playAllMode && currentIndex < files.length - 1) {
-      playIndex(currentIndex + 1, true);
+      setIsPlaying(false);
+      setWaitingNext(true);
+      nextTimerRef.current = setTimeout(() => {
+        nextTimerRef.current = null;
+        setWaitingNext(false);
+        playIndex(currentIndex + 1, true);
+      }, TRACK_GAP_MS);
     } else {
       setIsPlaying(false);
     }
@@ -587,12 +826,15 @@ function AudioPlayer({ textbook, level, onBack, onHome }) {
     else { audio.pause(); setIsPlaying(false); }
   }
   function stopAll() {
+    clearPendingNext();
     const audio = audioRef.current;
     if (audio) { audio.pause(); audio.currentTime = 0; }
     setIsPlaying(false);
     setCurrentIndex(-1);
     setPlayAllMode(false);
   }
+
+  useEffect(() => clearPendingNext, []);
 
   const groups = [];
   const groupIndex = {};
@@ -610,16 +852,19 @@ function AudioPlayer({ textbook, level, onBack, onHome }) {
           <button onClick={onHome} style={secondaryBtn}>처음으로</button>
         </div>
         <div style={{ fontSize: 20, fontWeight: 800, color: "#111827" }}>{textbook} {level}권</div>
-        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 18 }}>Final Test 음원 듣기</div>
+        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 18 }}>Final Test 음원 듣기 <span style={{ color: "#9ca3af" }}>(전체 재생 시 트랙 사이 3초 대기)</span></div>
 
         <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", padding: "20px 24px" }}>
-          <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
             <button onClick={() => playIndex(0, true)} style={primaryBtn}>▶ 전체 재생</button>
             {currentIndex >= 0 && (
               <>
                 <button onClick={togglePause} style={secondaryBtn}>{isPlaying ? "일시정지" : "재생"}</button>
                 <button onClick={stopAll} style={secondaryBtn}>정지</button>
               </>
+            )}
+            {waitingNext && (
+              <span style={{ fontSize: 12, color: "#2563eb", fontWeight: 700 }}>다음 트랙 재생까지 잠시만요…</span>
             )}
           </div>
 
@@ -628,16 +873,17 @@ function AudioPlayer({ textbook, level, onBack, onHome }) {
               <div style={{ fontSize: 13, fontWeight: 800, color: "#374151", marginBottom: 8, borderBottom: "2px solid #111827", paddingBottom: 4 }}>{g.part}</div>
               {g.items.map(({ file, index }) => {
                 const active = index === currentIndex;
+                const isWaitingHere = active && waitingNext;
                 return (
                   <div key={file} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 6px", borderRadius: 6, background: active ? "#eff6ff" : "transparent" }}>
                     <button
-                      onClick={() => (active ? togglePause() : playIndex(index, false))}
+                      onClick={() => (active && !waitingNext ? togglePause() : playIndex(index, false))}
                       style={{
                         width: 30, height: 30, borderRadius: "50%", border: "1px solid #d1d5db",
                         background: active ? "#2563eb" : "#fff", color: active ? "#fff" : "#374151",
                         fontSize: 12, cursor: "pointer", flexShrink: 0,
                       }}
-                    >{active && isPlaying ? "❚❚" : "▶"}</button>
+                    >{isWaitingHere ? "…" : active && isPlaying ? "❚❚" : "▶"}</button>
                     <span style={{ fontSize: 13, color: active ? "#1e40af" : "#111827", fontWeight: active ? 700 : 500 }}>
                       {audioTrackLabel(file)}
                     </span>
@@ -794,12 +1040,13 @@ const inputStyle = {
 const LABEL_W = 176;
 const MAXCOL_W = 60;
 const STUDENT_COL_W = 84;
-const COMMENT_ROW_W = 130;
+const COMMENT_ROW_W = 160;
 
-function Step2({ form, studentCount, updateStudentCount, students, updateStudentField, replaceAllStudents, onBack, onNext }) {
+function Step2({ form, partDefs, studentCount, updateStudentCount, students, updateStudentField, replaceAllStudents, onBack, onNext }) {
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = React.useRef(null);
   const tableWrapRef = React.useRef(null);
+  const gridFields = useMemo(() => buildGridFields(partDefs), [partDefs]);
 
   function handleUploadClick() {
     setUploadError("");
@@ -812,6 +1059,7 @@ function Step2({ form, studentCount, updateStudentCount, students, updateStudent
     if (!ok) { e.target.value = ""; return; }
     parseExcelFile(
       file,
+      partDefs,
       (newStudents) => {
         replaceAllStudents(newStudents);
         setUploadError("");
@@ -826,17 +1074,17 @@ function Step2({ form, studentCount, updateStudentCount, students, updateStudent
   function handleGridKeyDown(e, fieldKey, colIdx) {
     if (e.key !== "Tab") return;
     e.preventDefault();
-    let r = GRID_FIELDS.indexOf(fieldKey);
+    let r = gridFields.indexOf(fieldKey);
     let c = colIdx;
     if (!e.shiftKey) {
       r++;
-      if (r >= GRID_FIELDS.length) { r = 0; c++; }
+      if (r >= gridFields.length) { r = 0; c++; }
     } else {
       r--;
-      if (r < 0) { r = GRID_FIELDS.length - 1; c--; }
+      if (r < 0) { r = gridFields.length - 1; c--; }
     }
     if (c < 0 || c >= students.length) return;
-    const nextField = GRID_FIELDS[r];
+    const nextField = gridFields[r];
     const el = tableWrapRef.current?.querySelector(`[data-field="${nextField}"][data-col="${c}"]`);
     if (el) el.focus();
   }
@@ -907,7 +1155,7 @@ function Step2({ form, studentCount, updateStudentCount, students, updateStudent
     labelText: "#7f1d1d", border: "#fbbf24",
     totalLabel: "#fca5a5", totalMax: "#f1f5f9", totalCellA: "#fde68a", totalCellB: "#fcd34d",
   };
-  const testTotalMax = Object.values(MAX_SCORES).reduce((a, b) => a + Number(b || 0), 0);
+  const testTotalMax = partDefs.reduce((a, p) => a + Number(p.max || 0), 0);
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "30px 20px" }}>
@@ -940,7 +1188,7 @@ function Step2({ form, studentCount, updateStudentCount, students, updateStudent
           <span style={{ fontSize: 12, color: "#9ca3af" }}>‘만점’ 열은 교재 기준 고정값이며 수정할 수 없습니다. 입력값은 만점을 초과할 수 없습니다.</span>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => exportStudentsToExcel(form, students, "_템플릿")} style={secondaryBtn}>📥 엑셀 템플릿 다운로드</button>
+            <button onClick={() => exportStudentsToExcel(form, students, partDefs, "_템플릿")} style={secondaryBtn}>📥 엑셀 템플릿 다운로드</button>
             <button onClick={handleUploadClick} style={secondaryBtn}>📤 엑셀 파일 첨부(데이터 일괄 입력)</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{ display: "none" }} />
           </div>
@@ -977,16 +1225,16 @@ function Step2({ form, studentCount, updateStudentCount, students, updateStudent
             <tbody>
               <BigHeaderRow label="Final Test Achievement" bg="#1f2937" />
 
-              {PART_DEFS.map((p) => (
+              {partDefs.map((p) => (
                 <tr key={p.key}>
                   <td style={rowLabelStyle}>{p.label} <span style={{ fontWeight: 400 }}>({p.kr})</span></td>
-                  <td style={maxColStyle}>{getRowMax(p.key)}</td>
+                  <td style={maxColStyle}>{p.max}</td>
                   {students.map((s, i) => (
                     <td key={s.id} style={dataCellStyle(i, i === students.length - 1)}>
                       <input
-                        type="number" min={0} max={getRowMax(p.key)}
+                        type="number" min={0} max={p.max}
                         value={s[p.key]}
-                        onChange={(e) => updateStudentField(i, p.key, clamp(e.target.value, getRowMax(p.key)))}
+                        onChange={(e) => updateStudentField(i, p.key, clamp(e.target.value, p.max))}
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => handleGridKeyDown(e, p.key, i)}
                         data-field={p.key} data-col={i}
@@ -996,21 +1244,21 @@ function Step2({ form, studentCount, updateStudentCount, students, updateStudent
                   ))}
                 </tr>
               ))}
-              <TotalRow label="총점 (Test)" keys={PART_DEFS.map((p) => p.key)} max={testTotalMax} theme={testTheme} />
+              <TotalRow label="총점 (Test)" keys={partDefs.map((p) => p.key)} max={testTotalMax} theme={testTheme} />
 
               <BigHeaderRow label="Class Performance" bg="#1f2937" />
 
               <SectionRows title="Participation (참여도)" defs={PARTICIPATION_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
                 theme={{ label: "#bfdbfe", labelText: "#1e3a8a", group: "#93c5fd", dataA: "#eff6ff", dataB: "#dbeafe", border: "#93c5fd", inputBorder: "#60a5fa", inputBg: "#eff6ff", totalLabel: "#93c5fd", totalMax: "#f1f5f9", totalCellA: "#bfdbfe", totalCellB: "#93c5fd" }}
-                totalLabel="소계 (참여도)" totalMax={30}
+                totalLabel="총점 (참여도)" totalMax={30}
               />
               <SectionRows title="Behavior (태도)" defs={BEHAVIOR_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
                 theme={{ label: "#ddd6fe", labelText: "#4c1d95", group: "#c4b5fd", dataA: "#f5f3ff", dataB: "#ede9fe", border: "#c4b5fd", inputBorder: "#a78bfa", inputBg: "#f5f3ff", totalLabel: "#c4b5fd", totalMax: "#f1f5f9", totalCellA: "#ddd6fe", totalCellB: "#c4b5fd" }}
-                totalLabel="소계 (태도)" totalMax={30}
+                totalLabel="총점 (태도)" totalMax={30}
               />
               <SectionRows title="Homework (숙제)" defs={HOMEWORK_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
                 theme={{ label: "#fed7aa", labelText: "#7c2d12", group: "#fdba74", dataA: "#fff7ed", dataB: "#ffedd5", border: "#fdba74", inputBorder: "#fb923c", inputBg: "#fff7ed", totalLabel: "#fdba74", totalMax: "#f1f5f9", totalCellA: "#fed7aa", totalCellB: "#fdba74" }}
-                totalLabel="소계 (숙제)" totalMax={30}
+                totalLabel="총점 (숙제)" totalMax={30}
               />
 
               <tr>
@@ -1024,7 +1272,7 @@ function Step2({ form, studentCount, updateStudentCount, students, updateStudent
                       onKeyDown={(e) => handleGridKeyDown(e, "comment", i)}
                       data-field="comment" data-col={i}
                       placeholder="코멘트 입력"
-                      rows={5}
+                      rows={9}
                       maxLength={COMMENT_MAX_LEN}
                       style={{ width: COMMENT_ROW_W, maxWidth: COMMENT_ROW_W, boxSizing: "border-box", padding: "6px 6px", fontSize: 11, lineHeight: 1.4, border: "1px solid #fbbf24", borderRadius: 4, background: "#fffbeb", resize: "vertical", fontFamily: "inherit" }}
                     />
@@ -1080,13 +1328,13 @@ function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle
       {defs.map((d) => (
         <tr key={d.key}>
           <td style={rowLabelStyle}>{d.label} {d.kr && <span style={{ fontWeight: 400 }}>({d.kr})</span>}</td>
-          <td style={maxColStyle}>{getRowMax(d.key)}</td>
+          <td style={maxColStyle}>{DEFAULT_MAX}</td>
           {students.map((s, i) => (
             <td key={s.id} style={dataCellStyle(i, i === students.length - 1)}>
               <input
-                type="number" min={0} max={getRowMax(d.key)}
+                type="number" min={0} max={DEFAULT_MAX}
                 value={s[d.key]}
-                onChange={(e) => update(i, d.key, clamp(e.target.value, getRowMax(d.key)))}
+                onChange={(e) => update(i, d.key, clamp(e.target.value, DEFAULT_MAX))}
                 onFocus={(e) => e.target.select()}
                 onKeyDown={(e) => onNav(e, d.key, i)}
                 data-field={d.key} data-col={i}
@@ -1133,20 +1381,20 @@ const secondaryBtn = {
 };
 
 // ---------- STEP 3 ----------
-function computeReportData(student, totalMax, classAverages) {
-  const totalGot = PART_DEFS.reduce((sum, p) => sum + (Number(student[p.key]) || 0), 0);
+function computeReportData(student, partDefs, totalMax, classAverages) {
+  const totalGot = partDefs.reduce((sum, p) => sum + (Number(student[p.key]) || 0), 0);
   const totalPct = totalMax ? (totalGot / totalMax) * 100 : 0;
-  const radarData = PART_DEFS.map((p) => {
-    const pct = MAX_SCORES[p.key] ? (Number(student[p.key]) / MAX_SCORES[p.key]) * 100 : 0;
+  const radarData = partDefs.map((p) => {
+    const pct = p.max ? (Number(student[p.key]) / p.max) * 100 : 0;
     return { subject: p.label, 득점: Math.round(pct), 반평균: Math.round(classAverages[p.key]), 기준: 80 };
   });
   return { totalGot, totalPct, radarData };
 }
 
-function Step3({ form, totalMax, students, classAverages, reportIndex, setReportIndex, onBack }) {
+function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex, setReportIndex, onBack }) {
   const [printAll, setPrintAll] = useState(false);
   const student = students[reportIndex];
-  const { totalGot, totalPct, radarData } = computeReportData(student, totalMax, classAverages);
+  const { totalGot, totalPct, radarData } = computeReportData(student, partDefs, totalMax, classAverages);
 
   useEffect(() => {
     if (!printAll) return;
@@ -1192,7 +1440,7 @@ function Step3({ form, totalMax, students, classAverages, reportIndex, setReport
           >›</button>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => exportStudentsToExcel(form, students, "_성적결과")} style={secondaryBtn}>📊 엑셀 다운로드</button>
+          <button onClick={() => exportStudentsToExcel(form, students, partDefs, "_성적결과")} style={secondaryBtn}>📊 엑셀 다운로드</button>
           <button onClick={() => setPrintAll(true)} style={secondaryBtn}>🖨 전체 인쇄</button>
           <button onClick={() => window.print()} style={primaryBtn}>🖨 인쇄</button>
         </div>
@@ -1200,17 +1448,17 @@ function Step3({ form, totalMax, students, classAverages, reportIndex, setReport
 
       {!printAll && (
         <div className="single-report">
-          <ReportCard form={form} totalMax={totalMax} student={student} totalGot={totalGot} totalPct={totalPct} radarData={radarData} classAverages={classAverages} />
+          <ReportCard form={form} partDefs={partDefs} totalMax={totalMax} student={student} totalGot={totalGot} totalPct={totalPct} radarData={radarData} classAverages={classAverages} />
         </div>
       )}
 
       {printAll && (
         <div className="all-reports-container">
           {students.map((st) => {
-            const r = computeReportData(st, totalMax, classAverages);
+            const r = computeReportData(st, partDefs, totalMax, classAverages);
             return (
               <div className="print-page" key={st.id}>
-                <ReportCard form={form} totalMax={totalMax} student={st} totalGot={r.totalGot} totalPct={r.totalPct} radarData={r.radarData} classAverages={classAverages} />
+                <ReportCard form={form} partDefs={partDefs} totalMax={totalMax} student={st} totalGot={r.totalGot} totalPct={r.totalPct} radarData={r.radarData} classAverages={classAverages} />
               </div>
             );
           })}
@@ -1220,7 +1468,7 @@ function Step3({ form, totalMax, students, classAverages, reportIndex, setReport
   );
 }
 
-function ReportCard({ form, totalMax, student, totalGot, totalPct, radarData, classAverages }) {
+function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, radarData, classAverages }) {
   return (
     <div className="report-card" style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}>
       <div className="report-header" style={{ padding: "20px 24px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1243,7 +1491,7 @@ function ReportCard({ form, totalMax, student, totalGot, totalPct, radarData, cl
       <div className="report-section" style={{ margin: "22px 24px 0" }}>
         <SectionHeader icon="🎯" title="Final Test Achievement" />
         <div style={{ marginTop: 10 }}>
-          <ScoreTable totalMax={totalMax} student={student} totalGot={totalGot} totalPct={totalPct} />
+          <ScoreTable partDefs={partDefs} totalMax={totalMax} student={student} totalGot={totalGot} totalPct={totalPct} />
         </div>
       </div>
 
@@ -1258,11 +1506,11 @@ function ReportCard({ form, totalMax, student, totalGot, totalPct, radarData, cl
                 <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="득점" fill="#dc2626" radius={[3, 3, 0, 0]}>
-                  <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#991b1b" }} />
+                <Bar dataKey="득점" fill="#c2410c" radius={[3, 3, 0, 0]}>
+                  <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#9a3412" }} />
                 </Bar>
-                <Bar dataKey="반평균" fill="#16a34a" radius={[3, 3, 0, 0]}>
-                  <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#166534" }} />
+                <Bar dataKey="반평균" fill="#6d28d9" radius={[3, 3, 0, 0]}>
+                  <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#5b21b6" }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -1273,8 +1521,8 @@ function ReportCard({ form, totalMax, student, totalGot, totalPct, radarData, cl
                 <PolarGrid />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                 <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
-                <Radar name="득점" dataKey="득점" stroke="#dc2626" fill="#dc2626" fillOpacity={0.25} />
-                <Radar name="반평균" dataKey="반평균" stroke="#16a34a" fill="#16a34a" fillOpacity={0.15} />
+                <Radar name="득점" dataKey="득점" stroke="#c2410c" fill="#c2410c" fillOpacity={0.25} />
+                <Radar name="반평균" dataKey="반평균" stroke="#6d28d9" fill="#6d28d9" fillOpacity={0.15} />
                 <Radar name="기준점수" dataKey="기준" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.05} strokeDasharray="4 3" />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
               </RadarChart>
@@ -1290,7 +1538,7 @@ function ReportCard({ form, totalMax, student, totalGot, totalPct, radarData, cl
 
       <div className="report-section" style={{ margin: "16px 24px 0" }}>
         <SectionHeader icon="📝" title="Teacher's Comments" />
-        <div className="comments-box" style={{ marginTop: 6, minHeight: 40, border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 14px", fontSize: 13, color: "#111827", background: "#fafafa" }}>
+        <div className="comments-box" style={{ marginTop: 6, minHeight: 70, border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 14px", fontSize: 13, color: "#111827", background: "#fafafa" }}>
           {student.comment || <span style={{ color: "#9ca3af" }}>입력된 코멘트가 없습니다.</span>}
         </div>
       </div>
@@ -1325,7 +1573,7 @@ function InfoRow({ form, student }) {
   );
 }
 
-function ScoreTable({ totalMax, student, totalGot, totalPct }) {
+function ScoreTable({ partDefs, totalMax, student, totalGot, totalPct }) {
   const th = { padding: "8px 10px", fontSize: 12, color: "#fff", textAlign: "center" };
   const td = { padding: "8px 10px", fontSize: 13, textAlign: "center", borderBottom: "1px solid #f1f5f9" };
   return (
@@ -1340,9 +1588,9 @@ function ScoreTable({ totalMax, student, totalGot, totalPct }) {
         </tr>
       </thead>
       <tbody>
-        {PART_DEFS.map((p, i) => {
+        {partDefs.map((p, i) => {
           const got = Number(student[p.key]) || 0;
-          const max = MAX_SCORES[p.key] || 1;
+          const max = p.max || 1;
           const pct = Math.round((got / max) * 100);
           const g = grade100(pct);
           return (
@@ -1378,39 +1626,48 @@ function ScoreTable({ totalMax, student, totalGot, totalPct }) {
 
 function PerformanceTable({ student }) {
   const groups = [
-    { title: "참여도 (Participation)", defs: PARTICIPATION_DEFS, color: "#8b5cf6" },
-    { title: "태도 (Behavior)", defs: BEHAVIOR_DEFS, color: "#0d9488" },
-    { title: "숙제 (Homework)", defs: HOMEWORK_DEFS, color: "#f59e0b" },
+    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#8b5cf6" },
+    { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#0d9488" },
+    { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#f59e0b" },
   ];
-  const td = { padding: "7px 10px", fontSize: 12, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: "center" };
+  const td = { padding: "7px 8px", fontSize: 12, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: "center" };
+  const labelTd = { ...td, whiteSpace: "nowrap" };
+  const groupDivider = "2px solid #111827";
   return (
-    <table className="perf-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: 8 }}>
+    <table className="perf-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, tableLayout: "fixed" }}>
       <thead>
         <tr style={{ background: "#1f2937" }}>
-          <th style={{ ...td, color: "#fff", width: "16%" }}>항목</th>
-          <th style={{ ...td, color: "#fff" }}>세부항목</th>
-          <th style={{ ...td, color: "#fff", width: "36%" }}>성취도</th>
-          <th style={{ ...td, color: "#fff", width: "28%" }}>평가</th>
+          <th style={{ ...td, color: "#fff", width: "13%" }}>항목</th>
+          <th style={{ ...td, color: "#fff", width: "33%" }}>세부항목</th>
+          <th style={{ ...td, color: "#fff", width: "32%" }}>성취도</th>
+          <th style={{ ...td, color: "#fff", width: "22%" }}>평가</th>
         </tr>
       </thead>
       <tbody>
-        {groups.map((g) =>
+        {groups.map((g, gi) =>
           g.defs.map((d, di) => {
             const v = Number(student[d.key]) || 0;
             const grd = grade10(v);
+            const topBorder = di === 0 && gi > 0 ? groupDivider : undefined;
             return (
               <tr key={d.key}>
                 {di === 0 && (
-                  <td style={{ ...td, fontWeight: 700, textAlign: "center", verticalAlign: "middle", background: "#f3f4f6" }} rowSpan={g.defs.length}>{g.title}</td>
+                  <td
+                    style={{ ...td, fontWeight: 700, textAlign: "center", verticalAlign: "middle", background: "#f3f4f6", borderTop: topBorder, lineHeight: 1.4 }}
+                    rowSpan={g.defs.length}
+                  >
+                    <div>{g.titleKr}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", letterSpacing: 0.3 }}>{g.titleEn}</div>
+                  </td>
                 )}
-                <td style={td}>{d.label} {d.kr && `(${d.kr})`}</td>
-                <td style={td}>
+                <td style={{ ...labelTd, borderTop: topBorder }}>{d.label} {d.kr && `(${d.kr})`}</td>
+                <td style={{ ...td, borderTop: topBorder }}>
                   <div style={{ background: "#f1f5f9", borderRadius: 6, height: 14, position: "relative" }}>
                     <div style={{ width: `${Math.min(100, (v / 10) * 100)}%`, background: g.color, height: 14, borderRadius: 6 }} />
                     <span style={{ position: "absolute", right: 6, top: -1, fontSize: 10, fontWeight: 700, color: "#374151" }}>{v}</span>
                   </div>
                 </td>
-                <td style={td}>
+                <td style={{ ...td, borderTop: topBorder }}>
                   <span className="grade-badge" style={gradeBadgeStyle(grd)}>{grd.label}</span>
                 </td>
               </tr>
