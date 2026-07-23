@@ -1506,11 +1506,11 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
                 <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="득점" fill="#c2410c" radius={[3, 3, 0, 0]}>
-                  <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#9a3412" }} />
+                <Bar dataKey="득점" fill="#C68A1A" radius={[3, 3, 0, 0]}>
+                  <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#8a5f10" }} />
                 </Bar>
-                <Bar dataKey="반평균" fill="#6d28d9" radius={[3, 3, 0, 0]}>
-                  <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#5b21b6" }} />
+                <Bar dataKey="반평균" fill="#6B3B5E" radius={[3, 3, 0, 0]}>
+                  <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#4a2941" }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -1521,8 +1521,8 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
                 <PolarGrid />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                 <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
-                <Radar name="득점" dataKey="득점" stroke="#c2410c" fill="#c2410c" fillOpacity={0.25} />
-                <Radar name="반평균" dataKey="반평균" stroke="#6d28d9" fill="#6d28d9" fillOpacity={0.15} />
+                <Radar name="득점" dataKey="득점" stroke="#C68A1A" fill="#C68A1A" fillOpacity={0.3} />
+                <Radar name="반평균" dataKey="반평균" stroke="#6B3B5E" fill="#6B3B5E" fillOpacity={0.18} />
                 <Radar name="기준점수" dataKey="기준" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.05} strokeDasharray="4 3" />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
               </RadarChart>
@@ -1626,9 +1626,9 @@ function ScoreTable({ partDefs, totalMax, student, totalGot, totalPct }) {
 
 function PerformanceTable({ student }) {
   const groups = [
-    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#8b5cf6" },
-    { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#0d9488" },
-    { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#f59e0b" },
+    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#0F6674" },
+    { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#3B4C9E" },
+    { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#D4A017" },
   ];
   const td = { padding: "7px 8px", fontSize: 12, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: "center" };
   const labelTd = { ...td, whiteSpace: "nowrap" };
