@@ -140,6 +140,19 @@ const TEXTBOOKS = Object.keys(TEXTBOOK_LEVELS).sort((a, b) => a.localeCompare(b)
 function textbookLabel(form) {
   return form.level ? `${form.textbook} ${form.level}권` : form.textbook;
 }
+// PDF 파일명: 개별=학생명_교사명_반명_수업일자_교재명_학원명 / 전체=교사명_반명_수업일자_교재명_학원명 (학생명 칸 없음)
+function buildPdfFilename(form, studentLabel) {
+  const teacher = filenameSafe(form.teacher) || "교사명";
+  const className = filenameSafe(form.className) || "반명";
+  const period = form.dateStart && form.dateEnd ? `${form.dateStart}~${form.dateEnd}` : "수업일자";
+  const textbook = filenameSafe(form.textbook) || "교재명";
+  const academyName = filenameSafe(form.academyName) || "학원명";
+  const parts = [];
+  if (studentLabel) parts.push(filenameSafe(studentLabel) || "학생명");
+  parts.push(teacher, className, period, textbook, academyName);
+  return `${parts.join("_")}.pdf`;
+}
+
 function filenameSafe(s) {
   return (s || "").replace(/[\\/:*?"<>|]/g, "").trim();
 }
@@ -1643,8 +1656,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
     el.classList.add("pdf-capture-mode");
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const safeName = filenameSafe(student.name) || `학생${reportIndex + 1}`;
-      const filename = `${filenameSafe(form.className) || "성적표"}_${safeName}.pdf`;
+      const filename = buildPdfFilename(form, student.name || `학생${reportIndex + 1}`);
       await downloadReportAsPdf(el, filename);
     } catch (err) {
       alert("PDF 생성 중 문제가 발생했습니다: " + (err?.message || err));
@@ -1686,7 +1698,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
         pdf.addImage(imgData, "PNG", marginMm, marginMm, contentWidthMm, Math.min(contentHeightMm, 297 - marginMm * 2));
       }
 
-      const filename = `${filenameSafe(form.className) || "성적표"}_전체.pdf`;
+      const filename = buildPdfFilename(form, null);
       pdf.save(filename);
     } catch (err) {
       alert("전체 PDF 생성 중 문제가 발생했습니다: " + (err?.message || err));
