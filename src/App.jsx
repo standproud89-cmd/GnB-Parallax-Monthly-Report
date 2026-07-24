@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import ExcelJS from "exceljs";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import parallaxLogo from "./assets/parallax-logo.png";
 import gplumLogo from "./assets/gplum-logo.png";
 import {
@@ -141,12 +143,14 @@ function textbookLabel(form) {
 function filenameSafe(s) {
   return (s || "").replace(/[\\/:*?"<>|]/g, "").trim();
 }
-// 엑셀 파일명: 교재명_반명_기간.xlsx
+// 엑셀 템플릿 파일명: 교사명_반명_수업일자_교재명_학원명.xlsx
 function buildExcelFilename(form) {
-  const textbook = filenameSafe(form.textbook) || "교재명";
+  const teacher = filenameSafe(form.teacher) || "교사명";
   const className = filenameSafe(form.className) || "반명";
-  const period = form.dateStart && form.dateEnd ? `${form.dateStart}~${form.dateEnd}` : "기간";
-  return `${textbook}_${className}_${period}.xlsx`;
+  const period = form.dateStart && form.dateEnd ? `${form.dateStart}~${form.dateEnd}` : "수업일자";
+  const textbook = filenameSafe(form.textbook) || "교재명";
+  const academyName = filenameSafe(form.academyName) || "학원명";
+  return `${teacher}_${className}_${period}_${textbook}_${academyName}.xlsx`;
 }
 
 const DEFAULT_MAX = 10; // 참여도/태도/숙제 항목 공통 만점
@@ -292,7 +296,7 @@ async function exportStudentsToExcel(form, students, partDefs) {
       operator: "lessThanOrEqual",
       formulae: [COMMENT_MAX_LEN],
       showErrorMessage: true,
-      errorStyle: "error",
+      errorStyle: "stop",
       errorTitle: "글자수 초과",
       error: `Teacher's Comments는 최대 ${COMMENT_MAX_LEN}자까지 입력할 수 있습니다.`,
     };
@@ -382,6 +386,83 @@ async function parseExcelFile(file, partDefs, onSuccess, onError) {
   }
 }
 
+// 교재명 라벨("Susie's Day 1권") -> {textbook, level} 역변환
+function parseTextbookLabel(raw) {
+  const fallback = { textbook: TEXTBOOKS[0], level: TEXTBOOK_LEVELS[TEXTBOOKS[0]][0] };
+  if (!raw) return fallback;
+  const text = String(raw).trim();
+  const m = text.match(/^(.*)\s+(\d+)권$/);
+  if (m && TEXTBOOK_LEVELS[m[1].trim()]) {
+    return { textbook: m[1].trim(), level: Number(m[2]) };
+  }
+  if (TEXTBOOK_LEVELS[text]) {
+    return { textbook: text, level: TEXTBOOK_LEVELS[text][0] };
+  }
+  return fallback;
+}
+
+// Step1 "성적 수정 시 엑셀 업로드" - 기본정보 + 성적입력 시트를 함께 읽어서 폼과 학생 데이터를 복원
+async function parseFullExcelForEdit(file, onSuccess, onError) {
+  try {
+    const buffer = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+
+    const infoWs = wb.getWorksheet("기본정보");
+    const infoMap = {};
+    if (infoWs) {
+      infoWs.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const k = row.getCell(1).value;
+        const v = row.getCell(2).value;
+        if (k) infoMap[String(k).trim()] = v === null || v === undefined ? "" : String(v).trim();
+      });
+    }
+
+    const teacher = infoMap["담임교사"] || "";
+    const className = infoMap["Class명"] || "";
+    const academyName = infoMap["학원명"] || "";
+    const phone = infoMap["전화번호"] || "";
+    const periodParts = (infoMap["수업일자"] || "").split("~").map((s) => s.trim());
+    const dateStart = periodParts[0] || "";
+    const dateEnd = periodParts[1] || "";
+    const { textbook, level } = parseTextbookLabel(infoMap["교재명"]);
+    const partDefs = getPartDefs(textbook);
+
+    const gradeWs = wb.getWorksheet("성적입력") || wb.worksheets[0];
+    if (!gradeWs) throw new Error("성적입력 시트를 찾을 수 없습니다.");
+
+    await new Promise((resolve, reject) => {
+      // parseExcelFile과 동일한 파싱 로직을 재사용하기 위해 워크북 버퍼를 그대로 넘김
+      parseExcelFile(file, partDefs, (students) => {
+        onSuccess({
+          form: { teacher, className, dateStart, dateEnd, academyName, phone, textbook, level },
+          students,
+        });
+        resolve();
+      }, (err) => { reject(err); onError(err); });
+    });
+  } catch (err) {
+    onError(err);
+  }
+}
+
+// 최종 성적표를 A4 한 장 PDF로 다운로드 (html2canvas로 캡처 후 jsPDF로 저장 - 브라우저 인쇄창을 거치지 않음)
+async function downloadReportAsPdf(cardEl, filename) {
+  const canvas = await html2canvas(cardEl, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+  });
+  const imgData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const marginMm = 6;
+  const contentWidthMm = 210 - marginMm * 2;
+  const contentHeightMm = (canvas.height * contentWidthMm) / canvas.width;
+  pdf.addImage(imgData, "PNG", marginMm, marginMm, contentWidthMm, Math.min(contentHeightMm, 297 - marginMm * 2));
+  pdf.save(filename);
+}
+
 const GRADE_COLORS = {
   "Perfect": { color: "#16a34a", bg: "#dcfce7" },
   "Excellent": { color: "#0891b2", bg: "#cffafe" },
@@ -440,9 +521,16 @@ export default function App() {
     Array.from({ length: 7 }, (_, i) => makeStudent(i + 1, partDefs))
   );
   const [reportIndex, setReportIndex] = useState(0);
+  const [editLocked, setEditLocked] = useState(false); // 엑셀 업로드로 기존 데이터를 불러온 경우 교재/권 잠금
+  const skipNextResetRef = React.useRef(false);
 
   // 교재가 바뀌면 영역 구성이 달라지므로 점수 필드를 새로 초기화 (이름/코멘트는 유지)
+  // 단, 엑셀 업로드로 폼+학생 데이터를 한번에 불러온 직후에는 건너뜀 (skipNextResetRef)
   useEffect(() => {
+    if (skipNextResetRef.current) {
+      skipNextResetRef.current = false;
+      return;
+    }
     setStudents((prev) => prev.map((s, i) => {
       const fresh = makeStudent(i + 1, partDefs);
       return { ...fresh, name: s.name, comment: s.comment };
@@ -483,12 +571,17 @@ export default function App() {
     setStudentCount(Math.max(1, trimmed.length));
   }
 
-  // 성적/코멘트만 초기화 (학생명·학생 수는 유지)
+  // Step1 "성적 수정 시 엑셀 업로드": 기본정보 + 학생 데이터를 한 번에 불러와 폼과 입력표를 복원
+  function applyUploadedEdit(data) {
+    skipNextResetRef.current = true;
+    setForm((f) => ({ ...f, ...data.form }));
+    replaceAllStudents(data.students);
+    setEditLocked(true);
+  }
+
+  // 성적·코멘트·학생명 전체 초기화 (학생 수는 유지)
   function resetAllScores() {
-    setStudents((prev) => prev.map((s) => {
-      const fresh = makeStudent(s.id, partDefs);
-      return { ...fresh, name: s.name };
-    }));
+    setStudents((prev) => prev.map((s) => makeStudent(s.id, partDefs)));
   }
 
   // 반평균 계산
@@ -521,6 +614,8 @@ export default function App() {
           setForm={setForm}
           onNext={() => setStep(2)}
           onHome={() => setEntry(null)}
+          editLocked={editLocked}
+          onUploadEdit={applyUploadedEdit}
         />
       )}
       {step === 2 && (
@@ -970,7 +1065,11 @@ function StepIndicator({ step }) {
 }
 
 // ---------- STEP 1 ----------
-function Step1({ form, setForm, onNext, onHome }) {
+function Step1({ form, setForm, onNext, onHome, editLocked, onUploadEdit }) {
+  const [uploadError, setUploadError] = useState("");
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const editFileInputRef = React.useRef(null);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const canProceed = form.teacher && form.className && form.dateStart && form.dateEnd && form.academyName && form.textbook && form.level;
   const availableLevels = TEXTBOOK_LEVELS[form.textbook] || [1];
@@ -980,6 +1079,31 @@ function Step1({ form, setForm, onNext, onHome }) {
     const levels = TEXTBOOK_LEVELS[t] || [1];
     setForm((f) => ({ ...f, textbook: t, level: levels[0] }));
   }
+
+  function handleEditUploadClick() {
+    setUploadError("");
+    editFileInputRef.current?.click();
+  }
+  function handleEditFileChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setUploadBusy(true);
+    parseFullExcelForEdit(
+      file,
+      (data) => {
+        onUploadEdit(data);
+        setUploadBusy(false);
+        setUploadError("");
+      },
+      (err) => {
+        setUploadBusy(false);
+        setUploadError(err?.message || "업로드 중 오류가 발생했습니다.");
+      }
+    );
+    e.target.value = "";
+  }
+
+  const lockedSelectStyle = { ...inputStyle, background: "#f3f4f6", color: "#6b7280", cursor: "not-allowed" };
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 20px" }}>
@@ -992,6 +1116,11 @@ function Step1({ form, setForm, onNext, onHome }) {
           <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginTop: 4 }}>성적표 기본 정보 입력</div>
         </div>
         <div style={{ padding: "28px" }}>
+          {editLocked && (
+            <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#9a3412", marginBottom: 18 }}>
+              📤 업로드한 엑셀 데이터를 불러왔습니다. 교재명·권은 데이터 구조상 변경할 수 없습니다.
+            </div>
+          )}
           <Field label="담임교사" required>
             <input style={inputStyle} placeholder="예) Sophie" value={form.teacher} onChange={set("teacher")} />
           </Field>
@@ -1012,14 +1141,14 @@ function Step1({ form, setForm, onNext, onHome }) {
             <input style={inputStyle} placeholder="예) 02-567-0582" value={form.phone} onChange={set("phone")} />
           </Field>
           <Field label="교재명" required>
-            <select style={inputStyle} value={form.textbook} onChange={handleTextbookChange}>
+            <select style={editLocked ? lockedSelectStyle : inputStyle} value={form.textbook} onChange={handleTextbookChange} disabled={editLocked}>
               {TEXTBOOKS.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
           </Field>
           <Field label="권 (레벨)" required>
-            <select style={inputStyle} value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: Number(e.target.value) }))}>
+            <select style={editLocked ? lockedSelectStyle : inputStyle} value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: Number(e.target.value) }))} disabled={editLocked}>
               {availableLevels.map((lv) => (
                 <option key={lv} value={lv}>{lv}권</option>
               ))}
@@ -1045,6 +1174,37 @@ function Step1({ form, setForm, onNext, onHome }) {
 
           <div style={{ marginTop: 14, fontSize: 12, color: "#9ca3af", textAlign: "center" }}>
             * 입력값은 중간 저장이 되지 않으니, 새로고침에 유의하세요.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", overflow: "hidden", marginTop: 20 }}>
+        <div style={{ background: "linear-gradient(90deg,#4b5563,#1f2937)", padding: "22px 28px" }}>
+          <div style={{ color: "#fff", fontSize: 12, letterSpacing: 2, opacity: 0.85 }}>GnB EDUCATION</div>
+          <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginTop: 4 }}>성적 수정 시 → 엑셀로 업로드</div>
+        </div>
+        <div style={{ padding: "28px" }}>
+          <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, marginTop: 0 }}>
+            이미 작성해둔 엑셀 성적 파일(기본정보 + 성적입력 시트 포함)이 있다면 업로드해서 기본정보와 학생 성적을 한 번에 불러올 수 있습니다.
+          </p>
+          <button
+            onClick={handleEditUploadClick}
+            disabled={uploadBusy}
+            style={{
+              width: "100%", padding: "14px",
+              borderRadius: 10, border: "1px solid #d1d5db", fontSize: 15, fontWeight: 700,
+              cursor: uploadBusy ? "not-allowed" : "pointer",
+              background: "#fff", color: "#374151",
+            }}
+          >
+            {uploadBusy ? "불러오는 중…" : "📤 엑셀 파일 업로드"}
+          </button>
+          <input ref={editFileInputRef} type="file" accept=".xlsx,.xls" onChange={handleEditFileChange} style={{ display: "none" }} />
+          {uploadError && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "#dc2626" }}>⚠ {uploadError}</div>
+          )}
+          <div style={{ marginTop: 14, fontSize: 12, color: "#c2410c", textAlign: "center", fontWeight: 700 }}>
+            * 성적 수정 시에만 사용합니다.
           </div>
         </div>
       </div>
@@ -1206,7 +1366,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
 
         <div style={{ padding: "14px 26px", background: "#eff6ff", borderBottom: "1px solid #dbeafe", fontSize: 12, color: "#1e3a8a", lineHeight: 1.7 }}>
           <div>* 입력값은 중간 저장이 되지 않으니, 새로고침에 유의하세요.</div>
-          <div>* 현재 페이지에서 데이터 입력 도중 '엑셀 템플릿 다운로드' 클릭 시, 입력한 데이터가 반영된 엑셀 파일을 다운로드 받으실 수 있습니다. (웹 상에서는 중간 저장이 되지 않으니, 중간 저장이 필요하다면 해당 기능을 사용해 주세요.)</div>
+          <div>* '엑셀 템플릿 다운로드'는 화면에 입력된 내용과 상관없이 항상 빈 템플릿으로 다운로드됩니다. (현재 화면 입력을 그대로 저장하려는 용도가 아닙니다)</div>
           <div>* '엑셀 템플릿 다운로드' 클릭 → 엑셀 파일에 데이터 입력 → '엑셀 파일 첨부(데이터 일괄 입력)' 클릭으로 전체 데이터를 일괄 입력할 수 있습니다.</div>
         </div>
 
@@ -1220,12 +1380,18 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
           <span style={{ fontSize: 12, color: "#9ca3af" }}>‘만점’ 열은 교재 기준 고정값이며 수정할 수 없습니다. 입력값은 만점을 초과할 수 없습니다.</span>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => exportStudentsToExcel(form, students, partDefs)} style={secondaryBtn}>📥 엑셀 템플릿 다운로드</button>
+            <button
+              onClick={() => {
+                const blankStudents = Array.from({ length: studentCount }, (_, i) => makeStudent(i + 1, partDefs));
+                exportStudentsToExcel(form, blankStudents, partDefs);
+              }}
+              style={secondaryBtn}
+            >📥 엑셀 템플릿 다운로드</button>
             <button onClick={handleUploadClick} style={secondaryBtn}>📤 엑셀 파일 첨부(데이터 일괄 입력)</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{ display: "none" }} />
             <button
               onClick={() => {
-                if (window.confirm("입력한 모든 성적과 코멘트를 초기화합니다. (학생명·학생 수는 유지됩니다) 계속할까요?")) {
+                if (window.confirm("입력한 모든 학생명·성적·코멘트를 초기화합니다. (학생 수만 유지됩니다) 계속할까요?")) {
                   resetAllScores();
                 }
               }}
@@ -1433,6 +1599,8 @@ function computeReportData(student, partDefs, totalMax, classAverages) {
 
 function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex, setReportIndex, onBack }) {
   const [printAll, setPrintAll] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const cardRef = React.useRef(null);
   const student = students[reportIndex];
   const { totalGot, totalPct, radarData } = computeReportData(student, partDefs, totalMax, classAverages);
 
@@ -1454,6 +1622,24 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
       window.removeEventListener("afterprint", revert);
     };
   }, [printAll]);
+
+  async function handlePdfDownload() {
+    if (!cardRef.current || pdfBusy) return;
+    setPdfBusy(true);
+    const el = cardRef.current;
+    el.classList.add("pdf-capture-mode");
+    try {
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const safeName = filenameSafe(student.name) || `학생${reportIndex + 1}`;
+      const filename = `${filenameSafe(form.className) || "성적표"}_${safeName}.pdf`;
+      await downloadReportAsPdf(el, filename);
+    } catch (err) {
+      alert("PDF 생성 중 문제가 발생했습니다: " + (err?.message || err));
+    } finally {
+      el.classList.remove("pdf-capture-mode");
+      setPdfBusy(false);
+    }
+  }
 
   return (
     <div className="step3-wrapper" style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px 60px" }}>
@@ -1481,14 +1667,14 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
           >›</button>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => exportStudentsToExcel(form, students, partDefs)} style={secondaryBtn}>📊 엑셀 다운로드</button>
+          <button onClick={handlePdfDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "📄 PDF 다운로드"}</button>
           <button onClick={() => setPrintAll(true)} style={secondaryBtn}>🖨 전체 인쇄</button>
           <button onClick={() => window.print()} style={primaryBtn}>🖨 인쇄</button>
         </div>
       </div>
 
       {!printAll && (
-        <div className="single-report">
+        <div className="single-report" ref={cardRef}>
           <ReportCard form={form} partDefs={partDefs} totalMax={totalMax} student={student} totalGot={totalGot} totalPct={totalPct} radarData={radarData} classAverages={classAverages} />
         </div>
       )}
