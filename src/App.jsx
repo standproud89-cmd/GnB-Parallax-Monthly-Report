@@ -138,6 +138,16 @@ const TEXTBOOKS = Object.keys(TEXTBOOK_LEVELS).sort((a, b) => a.localeCompare(b)
 function textbookLabel(form) {
   return form.level ? `${form.textbook} ${form.level}권` : form.textbook;
 }
+function filenameSafe(s) {
+  return (s || "").replace(/[\\/:*?"<>|]/g, "").trim();
+}
+// 엑셀 파일명: 교재명_반명_기간.xlsx
+function buildExcelFilename(form) {
+  const textbook = filenameSafe(form.textbook) || "교재명";
+  const className = filenameSafe(form.className) || "반명";
+  const period = form.dateStart && form.dateEnd ? `${form.dateStart}~${form.dateEnd}` : "기간";
+  return `${textbook}_${className}_${period}.xlsx`;
+}
 
 const DEFAULT_MAX = 10; // 참여도/태도/숙제 항목 공통 만점
 function clamp(value, max) {
@@ -153,6 +163,17 @@ function makeStudent(i, partDefs) {
   BEHAVIOR_DEFS.forEach((p) => (base[p.key] = 0));
   HOMEWORK_DEFS.forEach((p) => (base[p.key] = 0));
   return base;
+}
+
+function isStudentRegistered(student, partDefs) {
+  if (student.name && student.name.trim() !== "") return true;
+  const allKeys = [
+    ...(partDefs || []).map((p) => p.key),
+    ...PARTICIPATION_DEFS.map((d) => d.key),
+    ...BEHAVIOR_DEFS.map((d) => d.key),
+    ...HOMEWORK_DEFS.map((d) => d.key),
+  ];
+  return allKeys.some((k) => Number(student[k]) > 0);
 }
 
 // 화면의 입력표와 동일한 행 구성 (라벨 / 만점 / 학생1 / 학생2 ...) - 선택된 교재의 partDefs 기준
@@ -175,7 +196,8 @@ function buildGridFields(partDefs) {
   ];
 }
 const SECTION_BREAK_ROWS = ["Participation (참여도)", "Behavior (태도)", "Homework (숙제)"];
-const COMMENT_ROW_LABEL = "Teacher Comments";
+const COMMENT_ROW_LABEL = "Teacher's Comments";
+const COMMENT_ROW_LABEL_LEGACY = "Teacher Comments"; // 예전 템플릿(아포스트로피 없음) 호환용
 const COMMENT_MAX_LEN = 500; // 최종 성적표 인쇄 시 코멘트 칸(고정 높이 34mm)에 맞춘 상한
 
 const XLS_COLORS = {
@@ -195,7 +217,7 @@ function xlsFill(argb) {
 }
 
 // 학생 데이터 배열 -> 화면 표와 동일한 구조 + 색상의 엑셀 파일로 다운로드 (템플릿 다운로드 / 결과 다운로드 겸용)
-async function exportStudentsToExcel(form, students, partDefs, filenameSuffix = "") {
+async function exportStudentsToExcel(form, students, partDefs) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("성적입력");
 
@@ -262,7 +284,7 @@ async function exportStudentsToExcel(form, students, partDefs, filenameSuffix = 
     const cell = commentRow.getCell(3 + i);
     cell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     if (!s.comment) {
-      cell.value = `티쳐스 코멘트 (업로드시 ${COMMENT_MAX_LEN}자 제한)`;
+      cell.value = `(업로드시 ${COMMENT_MAX_LEN}자 제한)`;
       cell.font = { italic: true, color: { argb: "FF9CA3AF" } };
     }
     cell.dataValidation = {
@@ -292,8 +314,7 @@ async function exportStudentsToExcel(form, students, partDefs, filenameSuffix = 
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  const safeClass = (form.className || "성적표").replace(/[\\/:*?"<>|]/g, "");
-  const filename = `${safeClass}${filenameSuffix}.xlsx`;
+  const filename = buildExcelFilename(form);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -338,11 +359,11 @@ async function parseExcelFile(file, partDefs, onSuccess, onError) {
       if (rowNumber === 1) return;
       const label = readCell(row.getCell(1).value);
       if (!label || SECTION_BREAK_ROWS.includes(label)) return;
-      if (label === COMMENT_ROW_LABEL) {
+      if (label === COMMENT_ROW_LABEL || label === COMMENT_ROW_LABEL_LEGACY) {
         students.forEach((s, i) => {
           const raw = row.getCell(3 + i).value;
           let text = raw === null || raw === undefined ? "" : String(raw);
-          if (text.startsWith("티쳐스 코멘트 (업로드시")) text = "";
+          if (text.startsWith("(업로드시") || text.startsWith("티쳐스 코멘트 (업로드시")) text = "";
           s.comment = text.slice(0, COMMENT_MAX_LEN);
         });
         return;
@@ -462,11 +483,21 @@ export default function App() {
     setStudentCount(Math.max(1, trimmed.length));
   }
 
+  // 성적/코멘트만 초기화 (학생명·학생 수는 유지)
+  function resetAllScores() {
+    setStudents((prev) => prev.map((s) => {
+      const fresh = makeStudent(s.id, partDefs);
+      return { ...fresh, name: s.name };
+    }));
+  }
+
   // 반평균 계산
   const classAverages = useMemo(() => {
     const avg = {};
+    const registered = students.filter((s) => isStudentRegistered(s, partDefs));
+    const pool = registered.length ? registered : students; // 등록된 학생이 하나도 없으면 전체로 폴백(0 방지용)
     partDefs.forEach((p) => {
-      const vals = students.map((s) => Number(s[p.key]) || 0);
+      const vals = pool.map((s) => Number(s[p.key]) || 0);
       const mean = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
       avg[p.key] = p.max ? (mean / p.max) * 100 : 0;
     });
@@ -501,6 +532,7 @@ export default function App() {
           students={students}
           updateStudentField={updateStudentField}
           replaceAllStudents={replaceAllStudents}
+          resetAllScores={resetAllScores}
           onBack={() => setStep(1)}
           onNext={() => {
             setReportIndex(0);
@@ -1042,7 +1074,7 @@ const MAXCOL_W = 60;
 const STUDENT_COL_W = 84;
 const COMMENT_ROW_W = 160;
 
-function Step2({ form, partDefs, studentCount, updateStudentCount, students, updateStudentField, replaceAllStudents, onBack, onNext }) {
+function Step2({ form, partDefs, studentCount, updateStudentCount, students, updateStudentField, replaceAllStudents, resetAllScores, onBack, onNext }) {
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = React.useRef(null);
   const tableWrapRef = React.useRef(null);
@@ -1188,9 +1220,17 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
           <span style={{ fontSize: 12, color: "#9ca3af" }}>‘만점’ 열은 교재 기준 고정값이며 수정할 수 없습니다. 입력값은 만점을 초과할 수 없습니다.</span>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => exportStudentsToExcel(form, students, partDefs, "_템플릿")} style={secondaryBtn}>📥 엑셀 템플릿 다운로드</button>
+            <button onClick={() => exportStudentsToExcel(form, students, partDefs)} style={secondaryBtn}>📥 엑셀 템플릿 다운로드</button>
             <button onClick={handleUploadClick} style={secondaryBtn}>📤 엑셀 파일 첨부(데이터 일괄 입력)</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{ display: "none" }} />
+            <button
+              onClick={() => {
+                if (window.confirm("입력한 모든 성적과 코멘트를 초기화합니다. (학생명·학생 수는 유지됩니다) 계속할까요?")) {
+                  resetAllScores();
+                }
+              }}
+              style={{ ...secondaryBtn, color: "#dc2626", borderColor: "#fecaca" }}
+            >🗑 초기화</button>
           </div>
         </div>
         {uploadError && (
@@ -1399,11 +1439,12 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
   useEffect(() => {
     if (!printAll) return;
     let raf1, raf2;
+    const delay = 400 + students.length * 40; // 학생 수가 많을수록 그래프 렌더링에 여유를 더 줌
     const t = setTimeout(() => {
       raf1 = requestAnimationFrame(() => {
         raf2 = requestAnimationFrame(() => window.print());
       });
-    }, 150);
+    }, delay);
     const revert = () => setPrintAll(false);
     window.addEventListener("afterprint", revert, { once: true });
     return () => {
@@ -1440,7 +1481,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
           >›</button>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => exportStudentsToExcel(form, students, partDefs, "_성적결과")} style={secondaryBtn}>📊 엑셀 다운로드</button>
+          <button onClick={() => exportStudentsToExcel(form, students, partDefs)} style={secondaryBtn}>📊 엑셀 다운로드</button>
           <button onClick={() => setPrintAll(true)} style={secondaryBtn}>🖨 전체 인쇄</button>
           <button onClick={() => window.print()} style={primaryBtn}>🖨 인쇄</button>
         </div>
@@ -1484,7 +1525,7 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
 
       <InfoRow form={form} student={student} />
 
-      <div className="report-section" style={{ margin: "14px 24px 0", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 16px", fontWeight: 800, color: "#78350f", fontSize: 14 }}>
+      <div className="report-section textbook-banner" style={{ margin: "14px 24px 0", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 16px", fontWeight: 800, color: "#78350f", fontSize: 14 }}>
         {textbookLabel(form)}
       </div>
 
@@ -1506,10 +1547,10 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
                 <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="득점" fill="#C68A1A" radius={[3, 3, 0, 0]}>
+                <Bar dataKey="득점" fill="#C68A1A" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                   <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#8a5f10" }} />
                 </Bar>
-                <Bar dataKey="반평균" fill="#6B3B5E" radius={[3, 3, 0, 0]}>
+                <Bar dataKey="반평균" fill="#6B3B5E" radius={[3, 3, 0, 0]} isAnimationActive={false}>
                   <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#4a2941" }} />
                 </Bar>
               </BarChart>
@@ -1521,9 +1562,9 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
                 <PolarGrid />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                 <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
-                <Radar name="득점" dataKey="득점" stroke="#C68A1A" fill="#C68A1A" fillOpacity={0.3} />
-                <Radar name="반평균" dataKey="반평균" stroke="#6B3B5E" fill="#6B3B5E" fillOpacity={0.18} />
-                <Radar name="기준점수" dataKey="기준" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.05} strokeDasharray="4 3" />
+                <Radar name="득점" dataKey="득점" stroke="#C68A1A" fill="#C68A1A" fillOpacity={0.3} isAnimationActive={false} />
+                <Radar name="반평균" dataKey="반평균" stroke="#6B3B5E" fill="#6B3B5E" fillOpacity={0.18} isAnimationActive={false} />
+                <Radar name="기준점수" dataKey="기준" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.05} strokeDasharray="4 3" isAnimationActive={false} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
               </RadarChart>
             </ResponsiveContainer>
@@ -1564,7 +1605,7 @@ function InfoRow({ form, student }) {
   const cell = { padding: "8px 14px", fontSize: 12, borderRight: "1px solid #e5e7eb" };
   const label = { fontWeight: 700, color: "#6b7280", marginRight: 6 };
   return (
-    <div style={{ margin: "6px 24px 0", border: "1px solid #e5e7eb", borderRadius: 8, display: "flex", flexWrap: "wrap", overflow: "hidden" }}>
+    <div className="info-row" style={{ margin: "6px 24px 0", border: "1px solid #e5e7eb", borderRadius: 8, display: "flex", flexWrap: "wrap", overflow: "hidden" }}>
       <div style={cell}><span style={label}>Date</span>{form.dateStart} ~ {form.dateEnd}</div>
       <div style={cell}><span style={label}>Teacher's Name</span>{form.teacher}</div>
       <div style={cell}><span style={label}>Class</span>{form.className}</div>
@@ -1684,7 +1725,7 @@ function PerformanceTable({ student }) {
 
 function SectionHeader({ icon, title }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "2px solid #111827", paddingBottom: 6 }}>
+    <div className="section-header" style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "2px solid #111827", paddingBottom: 6 }}>
       <span>{icon}</span>
       <span style={{ fontWeight: 800, fontSize: 15, color: "#111827" }}>{title}</span>
     </div>
