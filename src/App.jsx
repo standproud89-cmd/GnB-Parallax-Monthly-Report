@@ -309,12 +309,22 @@ async function exportStudentsToExcel(form, students, partDefs) {
   const wsInfo = wb.addWorksheet("기본정보");
   wsInfo.columns = [{ header: "항목", key: "항목", width: 14 }, { header: "값", key: "값", width: 40 }];
   wsInfo.getRow(1).font = { bold: true };
-  wsInfo.addRow({ 항목: "담임교사", 값: form.teacher });
-  wsInfo.addRow({ 항목: "Class명", 값: form.className });
-  wsInfo.addRow({ 항목: "수업일자", 값: `${form.dateStart} ~ ${form.dateEnd}` });
-  wsInfo.addRow({ 항목: "교재명", 값: textbookLabel(form) });
-  wsInfo.addRow({ 항목: "학원명", 값: form.academyName });
-  wsInfo.addRow({ 항목: "전화번호", 값: form.phone });
+  const teacherRow = wsInfo.addRow({ 항목: "담임교사", 값: form.teacher });
+  const classRow = wsInfo.addRow({ 항목: "Class명", 값: form.className });
+  const periodRow = wsInfo.addRow({ 항목: "수업일자", 값: `${form.dateStart} ~ ${form.dateEnd}` });
+  const textbookRow = wsInfo.addRow({ 항목: "교재명", 값: textbookLabel(form) });
+  const academyRow = wsInfo.addRow({ 항목: "학원명", 값: form.academyName });
+  const phoneRow = wsInfo.addRow({ 항목: "전화번호", 값: form.phone });
+
+  // 교재명(과 그 안에 포함된 권/레벨)은 최초 생성 시의 영역 구성과 반드시 일치해야 하므로 수정 못 하게 잠금.
+  // 나머지 기본정보 항목은 자유롭게 수정 가능하도록 잠금 해제.
+  [teacherRow, classRow, periodRow, academyRow, phoneRow].forEach((row) => {
+    row.getCell(1).protection = { locked: false };
+    row.getCell(2).protection = { locked: false };
+  });
+  textbookRow.getCell(2).fill = xlsFill("FFF3F4F6");
+  textbookRow.getCell(2).font = { italic: true, color: { argb: "FF6B7280" } };
+  wsInfo.protect("", { selectLockedCells: true, selectUnlockedCells: true });
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -456,7 +466,7 @@ async function downloadReportAsPdf(cardEl, filename) {
   });
   const imgData = canvas.toDataURL("image/png");
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const marginMm = 6;
+  const marginMm = 8;
   const contentWidthMm = 210 - marginMm * 2;
   const contentHeightMm = (canvas.height * contentWidthMm) / canvas.width;
   pdf.addImage(imgData, "PNG", marginMm, marginMm, contentWidthMm, Math.min(contentHeightMm, 297 - marginMm * 2));
@@ -1600,6 +1610,8 @@ function computeReportData(student, partDefs, totalMax, classAverages) {
 function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex, setReportIndex, onBack }) {
   const [printAll, setPrintAll] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfAllBusy, setPdfAllBusy] = useState(false);
+  const [pdfAllRendering, setPdfAllRendering] = useState(false);
   const cardRef = React.useRef(null);
   const student = students[reportIndex];
   const { totalGot, totalPct, radarData } = computeReportData(student, partDefs, totalMax, classAverages);
@@ -1623,6 +1635,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
     };
   }, [printAll]);
 
+  // 개별 PDF 다운로드 (현재 보고 있는 학생 1명)
   async function handlePdfDownload() {
     if (!cardRef.current || pdfBusy) return;
     setPdfBusy(true);
@@ -1640,6 +1653,50 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
       setPdfBusy(false);
     }
   }
+
+  // 전체 PDF 다운로드 (학생 수만큼 페이지가 있는 PDF 1개)
+  async function handlePdfAllDownload() {
+    if (pdfAllBusy) return;
+    setPdfAllBusy(true);
+    setPdfAllRendering(true);
+    try {
+      // all-reports-container가 화면에 렌더링될 시간을 학생 수에 비례해서 확보
+      const delay = 400 + students.length * 40;
+      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const cards = Array.from(document.querySelectorAll(".all-reports-container .report-card"));
+      if (!cards.length) throw new Error("성적표를 찾을 수 없습니다.");
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const marginMm = 8;
+      const contentWidthMm = 210 - marginMm * 2;
+
+      for (let i = 0; i < cards.length; i++) {
+        const el = cards[i];
+        el.classList.add("pdf-capture-mode");
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        // eslint-disable-next-line no-await-in-loop
+        const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+        el.classList.remove("pdf-capture-mode");
+        const imgData = canvas.toDataURL("image/png");
+        const contentHeightMm = (canvas.height * contentWidthMm) / canvas.width;
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", marginMm, marginMm, contentWidthMm, Math.min(contentHeightMm, 297 - marginMm * 2));
+      }
+
+      const filename = `${filenameSafe(form.className) || "성적표"}_전체.pdf`;
+      pdf.save(filename);
+    } catch (err) {
+      alert("전체 PDF 생성 중 문제가 발생했습니다: " + (err?.message || err));
+    } finally {
+      setPdfAllRendering(false);
+      setPdfAllBusy(false);
+    }
+  }
+
+  const showAllContainer = printAll || pdfAllRendering;
 
   return (
     <div className="step3-wrapper" style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px 60px" }}>
@@ -1666,20 +1723,21 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
             style={{ ...stepperBtn, width: 34, height: 34, opacity: reportIndex === students.length - 1 ? 0.4 : 1 }}
           >›</button>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={handlePdfDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "📄 PDF 다운로드"}</button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={handlePdfDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "📄 PDF 다운로드 (개별)"}</button>
+          <button onClick={handlePdfAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "📄 PDF 다운로드 (전체)"}</button>
           <button onClick={() => setPrintAll(true)} style={secondaryBtn}>🖨 전체 인쇄</button>
           <button onClick={() => window.print()} style={primaryBtn}>🖨 인쇄</button>
         </div>
       </div>
 
-      {!printAll && (
+      {!showAllContainer && (
         <div className="single-report" ref={cardRef}>
           <ReportCard form={form} partDefs={partDefs} totalMax={totalMax} student={student} totalGot={totalGot} totalPct={totalPct} radarData={radarData} classAverages={classAverages} />
         </div>
       )}
 
-      {printAll && (
+      {showAllContainer && (
         <div className="all-reports-container">
           {students.map((st) => {
             const r = computeReportData(st, partDefs, totalMax, classAverages);

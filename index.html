@@ -9,7 +9,7 @@
       body { margin: 0; }
 
       @media print {
-        @page { size: A4; margin: 6mm; }
+        @page { size: A4; margin: 8mm; }
         html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
@@ -29,21 +29,21 @@
           border-radius: 0 !important;
           border: 1px solid #e5e7eb !important;
         }
-        .report-header { padding: 4px 14px 2px !important; }
-        .report-section { margin: 4px 14px 0 !important; }
-        .report-section:last-child { margin-bottom: 4px !important; }
-        .info-row { margin: 3px 24px 0 !important; }
-        .info-row > div { padding: 3px 10px !important; font-size: 10px !important; }
-        .section-header { padding-bottom: 2px !important; }
-        .section-header span:last-child { font-size: 12px !important; }
-        .textbook-banner { padding: 4px 12px !important; font-size: 11px !important; }
-        .report-footer { margin: 3px 24px 3px !important; padding-top: 3px !important; font-size: 9px !important; }
+        .report-header { padding: 6px 14px 3px !important; }
+        .report-section { margin: 6px 14px 0 !important; }
+        .report-section:last-child { margin-bottom: 6px !important; }
+        .info-row { margin: 4px 24px 0 !important; }
+        .info-row > div { padding: 4px 12px !important; font-size: 10.5px !important; }
+        .section-header { padding-bottom: 3px !important; }
+        .section-header span:last-child { font-size: 12.5px !important; }
+        .textbook-banner { padding: 5px 14px !important; font-size: 11.5px !important; }
+        .report-footer { margin: 4px 24px 4px !important; padding-top: 4px !important; font-size: 9.5px !important; }
 
         .score-table td, .score-table th { padding: 2px 6px !important; font-size: 9.5px !important; }
         .perf-table td, .perf-table th { padding: 1px 6px !important; font-size: 9px !important; }
         .grade-badge { font-size: 8.5px !important; width: 72px !important; padding: 1px 0 !important; }
 
-        .chart-box, .radar-box { height: 118px !important; padding: 3px !important; }
+        .chart-box, .radar-box { height: 140px !important; padding: 4px !important; }
 
         .comments-box {
           height: 30mm !important;
@@ -59,27 +59,27 @@
         .print-page:last-child { page-break-after: auto; }
       }
 
-      /* PDF 다운로드용 캡처 모드 - @media print과 동일한 수치를 고정 픽셀 폭으로 재현 (html2canvas는 print 미디어를 인식하지 못하므로 클래스로 동일하게 적용) */
+      /* PDF 다운로드용 캡처 모드 - @media print과 동일한 수치를 고정 픽셀 폭으로 재현 (A4 794x1123px 기준, 안전 영역 약 730x1050px) */
       .pdf-capture-mode .report-card {
-        width: 748px !important;
+        width: 733px !important;
         margin: 0 auto !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         border: 1px solid #e5e7eb !important;
       }
-      .pdf-capture-mode .report-header { padding: 4px 14px 2px !important; }
-      .pdf-capture-mode .report-section { margin: 4px 14px 0 !important; }
-      .pdf-capture-mode .report-section:last-child { margin-bottom: 4px !important; }
-      .pdf-capture-mode .info-row { margin: 3px 24px 0 !important; }
-      .pdf-capture-mode .info-row > div { padding: 3px 10px !important; font-size: 10px !important; }
-      .pdf-capture-mode .section-header { padding-bottom: 2px !important; }
-      .pdf-capture-mode .section-header span:last-child { font-size: 12px !important; }
-      .pdf-capture-mode .textbook-banner { padding: 4px 12px !important; font-size: 11px !important; }
-      .pdf-capture-mode .report-footer { margin: 3px 24px 3px !important; padding-top: 3px !important; font-size: 9px !important; }
+      .pdf-capture-mode .report-header { padding: 6px 14px 3px !important; }
+      .pdf-capture-mode .report-section { margin: 6px 14px 0 !important; }
+      .pdf-capture-mode .report-section:last-child { margin-bottom: 6px !important; }
+      .pdf-capture-mode .info-row { margin: 4px 24px 0 !important; }
+      .pdf-capture-mode .info-row > div { padding: 4px 12px !important; font-size: 10.5px !important; }
+      .pdf-capture-mode .section-header { padding-bottom: 3px !important; }
+      .pdf-capture-mode .section-header span:last-child { font-size: 12.5px !important; }
+      .pdf-capture-mode .textbook-banner { padding: 5px 14px !important; font-size: 11.5px !important; }
+      .pdf-capture-mode .report-footer { margin: 4px 24px 4px !important; padding-top: 4px !important; font-size: 9.5px !important; }
       .pdf-capture-mode .score-table td, .pdf-capture-mode .score-table th { padding: 2px 6px !important; font-size: 9.5px !important; }
       .pdf-capture-mode .perf-table td, .pdf-capture-mode .perf-table th { padding: 1px 6px !important; font-size: 9px !important; }
       .pdf-capture-mode .grade-badge { font-size: 8.5px !important; width: 72px !important; padding: 1px 0 !important; }
-      .pdf-capture-mode .chart-box, .pdf-capture-mode .radar-box { height: 118px !important; padding: 3px !important; }
+      .pdf-capture-mode .chart-box, .pdf-capture-mode .radar-box { height: 140px !important; padding: 4px !important; }
       .pdf-capture-mode .comments-box {
         height: 30mm !important;
         min-height: 0 !important;
