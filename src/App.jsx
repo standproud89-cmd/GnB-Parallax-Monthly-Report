@@ -713,7 +713,7 @@ function Landing({ onSelect }) {
           <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6, fontWeight: 600 }}>원하시는 메뉴를 선택해주세요</div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        <div className="landing-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
           <button
             onClick={() => onSelect("audio")}
             style={cardStyle("audio")}
@@ -892,9 +892,9 @@ function AudioLevelPicker({ onPick, onHome }) {
           {TEXTBOOKS.filter((t) => t !== "Mr.Grammar").map((t) => {
             const levels = TEXTBOOK_LEVELS[t] || [];
             return (
-              <div key={t} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
-                <div style={{ minWidth: 170, fontWeight: 700, color: "#111827", fontSize: 14 }}>{t}</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div key={t} className="audio-book-row" style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
+                <div className="audio-book-label" style={{ minWidth: 170, fontWeight: 700, color: "#111827", fontSize: 14 }}>{t}</div>
+                <div className="audio-level-boxes" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {levels.map((lv) => {
                     const has = !!(AUDIO_LIBRARY[t] && AUDIO_LIBRARY[t][lv]);
                     return (
@@ -903,6 +903,7 @@ function AudioLevelPicker({ onPick, onHome }) {
                         disabled={!has}
                         onClick={() => has && onPick(t, lv)}
                         title={has ? `${lv}권 음원 듣기` : "음원 준비중"}
+                        className="audio-level-box"
                         style={{
                           width: 38, height: 38, borderRadius: 8,
                           border: has ? "1.5px solid #111827" : "1.5px solid #e5e7eb",
@@ -1393,16 +1394,16 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
           <div>* '엑셀 템플릿 다운로드' 클릭 → 엑셀 파일에 데이터 입력 → '엑셀 파일 첨부(데이터 일괄 입력)' 클릭으로 전체 데이터를 일괄 입력할 수 있습니다.</div>
         </div>
 
-        <div style={{ padding: "16px 26px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, borderBottom: "1px solid #f1f5f9" }}>
+        <div className="step2-toolbar" style={{ padding: "16px 26px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, borderBottom: "1px solid #f1f5f9" }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>학생 수</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={() => updateStudentCount(studentCount - 1)} style={stepperBtn}>-</button>
+            <button onClick={() => updateStudentCount(studentCount - 1)} className="stepper-btn" style={stepperBtn}>-</button>
             <span style={{ minWidth: 24, textAlign: "center", fontWeight: 700 }}>{studentCount}</span>
-            <button onClick={() => updateStudentCount(studentCount + 1)} style={stepperBtn}>+</button>
+            <button onClick={() => updateStudentCount(studentCount + 1)} className="stepper-btn" style={stepperBtn}>+</button>
           </div>
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>‘만점’ 열은 교재 기준 고정값이며 수정할 수 없습니다. 입력값은 만점을 초과할 수 없습니다.</span>
+          <span className="step2-hint" style={{ fontSize: 12, color: "#9ca3af" }}>‘만점’ 열은 교재 기준 고정값이며 수정할 수 없습니다. 입력값은 만점을 초과할 수 없습니다.</span>
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="step2-toolbar-actions" style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
             <button
               onClick={() => {
                 const blankStudents = Array.from({ length: studentCount }, (_, i) => makeStudent(i + 1, partDefs));
@@ -1712,9 +1713,9 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
 
   return (
     <div className="step3-wrapper" style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px 60px" }}>
-      <div className="print-hide" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      <div className="print-hide step3-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <button onClick={onBack} style={secondaryBtn}>← 입력표 수정</button>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="step3-nav" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             disabled={reportIndex === 0}
             onClick={() => setReportIndex((i) => Math.max(0, i - 1))}
@@ -1735,7 +1736,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
             style={{ ...stepperBtn, width: 34, height: 34, opacity: reportIndex === students.length - 1 ? 0.4 : 1 }}
           >›</button>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="step3-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={handlePdfDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "📄 PDF 다운로드 (개별)"}</button>
           <button onClick={handlePdfAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "📄 PDF 다운로드 (전체)"}</button>
           <button onClick={() => setPrintAll(true)} style={secondaryBtn}>🖨 전체 인쇄</button>
@@ -1769,11 +1770,11 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
   return (
     <div className="report-card" style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}>
       <div className="report-header" style={{ padding: "20px 24px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="report-logo-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src={parallaxLogo} alt="GnB Parallax" style={{ height: 30, width: "auto", display: "block" }} />
           <span style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>Monthly Report</span>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div className="signature-row" style={{ display: "flex", gap: 10 }}>
           <SignatureBox label="Director's Signature" />
           <SignatureBox label="Parents' Signature" />
         </div>
@@ -1781,7 +1782,7 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
 
       <InfoRow form={form} student={student} />
 
-      <div className="report-section textbook-banner" style={{ margin: "14px 24px 0", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 16px", fontWeight: 800, color: "#78350f", fontSize: 14 }}>
+      <div className="report-section textbook-banner" style={{ margin: "14px 24px 0", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 16px", fontWeight: 800, color: "#78350f", fontSize: 16 }}>
         {textbookLabel(form)}
       </div>
 
@@ -1835,7 +1836,7 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
 
       <div className="report-section" style={{ margin: "16px 24px 0" }}>
         <SectionHeader icon="📝" title="Teacher's Comments" />
-        <div className="comments-box" style={{ marginTop: 6, minHeight: 70, border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 14px", fontSize: 13, color: "#111827", background: "#fafafa" }}>
+        <div className="comments-box" style={{ marginTop: 6, minHeight: 70, border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 14px", fontSize: 13, color: "#111827", background: "#fafafa", overflowWrap: "break-word", wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
           {student.comment || <span style={{ color: "#9ca3af" }}>입력된 코멘트가 없습니다.</span>}
         </div>
       </div>
@@ -1850,7 +1851,7 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
 
 function SignatureBox({ label }) {
   return (
-    <div style={{ width: 90, textAlign: "center" }}>
+    <div className="signature-box" style={{ width: 90, textAlign: "center" }}>
       <div style={{ height: 36, border: "1px solid #d1d5db", borderRadius: 6, background: "#f9fafb" }} />
       <div style={{ fontSize: 9, color: "#6b7280", marginTop: 3 }}>{label}</div>
     </div>
@@ -1858,14 +1859,27 @@ function SignatureBox({ label }) {
 }
 
 function InfoRow({ form, student }) {
-  const cell = { padding: "8px 14px", fontSize: 12, borderRight: "1px solid #e5e7eb" };
-  const label = { fontWeight: 700, color: "#6b7280", marginRight: 6 };
+  const cellBase = { padding: "8px 16px", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", justifyContent: "center" };
+  const labelStyle = { fontWeight: 700, color: "#9ca3af", fontSize: 10 };
+  const valueStyle = { fontSize: 14, fontWeight: 600, color: "#111827" };
   return (
-    <div className="info-row" style={{ margin: "6px 24px 0", border: "1px solid #e5e7eb", borderRadius: 8, display: "flex", flexWrap: "wrap", overflow: "hidden" }}>
-      <div style={cell}><span style={label}>Date</span>{form.dateStart} ~ {form.dateEnd}</div>
-      <div style={cell}><span style={label}>Teacher's Name</span>{form.teacher}</div>
-      <div style={cell}><span style={label}>Class</span>{form.className}</div>
-      <div style={{ ...cell, borderRight: "none" }}><span style={label}>Student's Name</span>{student.name || "-"}</div>
+    <div className="info-row" style={{ margin: "6px 24px 0", border: "1px solid #e5e7eb", borderRadius: 8, display: "flex", overflow: "hidden" }}>
+      <div style={{ ...cellBase, flex: 1.5 }}>
+        <span style={labelStyle}>Date</span>
+        <span style={valueStyle}>{form.dateStart} ~ {form.dateEnd}</span>
+      </div>
+      <div style={{ ...cellBase, flex: 0.9 }}>
+        <span style={labelStyle}>Teacher's Name</span>
+        <span style={valueStyle}>{form.teacher}</span>
+      </div>
+      <div style={{ ...cellBase, flex: 0.9 }}>
+        <span style={labelStyle}>Class</span>
+        <span style={valueStyle}>{form.className}</span>
+      </div>
+      <div style={{ ...cellBase, flex: 0.7, borderRight: "none" }}>
+        <span style={labelStyle}>Student's Name</span>
+        <span style={valueStyle}>{student.name || "-"}</span>
+      </div>
     </div>
   );
 }
@@ -1959,9 +1973,11 @@ function PerformanceTable({ student }) {
                 )}
                 <td style={{ ...labelTd, borderTop: topBorder }}>{d.label} {d.kr && `(${d.kr})`}</td>
                 <td style={{ ...td, borderTop: topBorder }}>
-                  <div style={{ background: "#f1f5f9", borderRadius: 6, height: 14, position: "relative" }}>
-                    <div style={{ width: `${Math.min(100, (v / 10) * 100)}%`, background: g.color, height: 14, borderRadius: 6 }} />
-                    <span style={{ position: "absolute", right: 6, top: -1, fontSize: 10, fontWeight: 700, color: "#374151" }}>{v}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, background: "#f1f5f9", borderRadius: 6, height: 14 }}>
+                      <div style={{ width: `${Math.min(100, (v / 10) * 100)}%`, background: g.color, height: 14, borderRadius: 6 }} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: g.color, minWidth: 16, textAlign: "right" }}>{v}</span>
                   </div>
                 </td>
                 <td style={{ ...td, borderTop: topBorder }}>
