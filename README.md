@@ -6,7 +6,7 @@ React + Vite + Recharts로 만들어졌습니다.
 ## GitHub에 올리기
 
 1. GitHub에서 새 저장소(Repository)를 만듭니다. (예: `gnb-report-app`, Public/Private 무관)
-2. 이 폴더 전체를 그대로 로컬 컴퓨터에 저장한 뒤, 터미널에서 아래 명령을 순서대로 실행합니다.
+2. 이 폴더 전체를 그대로 로컬 컴퓨터에 저장한 뒤, 터미널에서 아래 명령을 순서대로 실행합니다..
 
 ```bash
 cd gnb-report-app
