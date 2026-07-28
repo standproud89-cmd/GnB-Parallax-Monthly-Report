@@ -1253,9 +1253,21 @@ const inputStyle = {
 };
 
 // ---------- STEP 2 ----------
-const LABEL_W = 176;
-const MAXCOL_W = 60;
-const STUDENT_COL_W = 84;
+const LABEL_W_DESKTOP = 176, MAXCOL_W_DESKTOP = 60, STUDENT_COL_W_DESKTOP = 84;
+const LABEL_W_MOBILE = 100, MAXCOL_W_MOBILE = 38, STUDENT_COL_W_MOBILE = 98;
+// <col> 요소는 CSS 변수(var())로 폭을 지정해도 브라우저가 안정적으로 반영하지 않는 경우가 있어,
+// 화면 폭을 JS에서 직접 감지해서 픽셀 값을 계산한다.
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= breakpoint);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handler = () => setIsMobile(mq.matches);
+    handler();
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
 const COMMENT_ROW_W = 160;
 
 function Step2({ form, partDefs, studentCount, updateStudentCount, students, updateStudentField, replaceAllStudents, resetAllScores, onBack, onNext }) {
@@ -1263,6 +1275,10 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
   const fileInputRef = React.useRef(null);
   const tableWrapRef = React.useRef(null);
   const gridFields = useMemo(() => buildGridFields(partDefs), [partDefs]);
+  const isMobile = useIsMobile();
+  const LABEL_W = isMobile ? LABEL_W_MOBILE : LABEL_W_DESKTOP;
+  const MAXCOL_W = isMobile ? MAXCOL_W_MOBILE : MAXCOL_W_DESKTOP;
+  const STUDENT_COL_W = isMobile ? STUDENT_COL_W_MOBILE : STUDENT_COL_W_DESKTOP;
 
   function handleUploadClick() {
     setUploadError("");
@@ -1326,7 +1342,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
     textAlign: "center",
   });
   const cellInput = {
-    width: "100%", maxWidth: 56, textAlign: "center", padding: "5px 2px", fontSize: 12,
+    width: "100%", minWidth: 0, maxWidth: 56, textAlign: "center", padding: "5px 2px", fontSize: 12,
     border: "1px solid #fbbf24", borderRadius: 4, background: "#fffbeb", boxSizing: "border-box",
   };
 
@@ -1428,7 +1444,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
         )}
 
         <div ref={tableWrapRef} className="step2-table-scroll" style={{ overflowX: "auto", padding: "18px 26px" }}>
-          <table style={{ borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
+          <table style={{ borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed", width: LABEL_W + MAXCOL_W + STUDENT_COL_W * students.length }}>
             <colgroup>
               <col style={{ width: LABEL_W }} />
               <col style={{ width: MAXCOL_W }} />
@@ -1436,17 +1452,17 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
             </colgroup>
             <thead>
               <tr>
-                <th style={{ ...rowLabelStyle, background: "#111827", color: "#fff", zIndex: 3 }}>학생명</th>
-                <th style={{ ...maxColStyle, background: "#111827", color: "#fff", zIndex: 3 }}>만점</th>
+                <th style={{ ...rowLabelStyle, width: LABEL_W, minWidth: LABEL_W, maxWidth: LABEL_W, background: "#111827", color: "#fff", zIndex: 3 }}>학생명</th>
+                <th style={{ ...maxColStyle, width: MAXCOL_W, minWidth: MAXCOL_W, maxWidth: MAXCOL_W, background: "#111827", color: "#fff", zIndex: 3 }}>만점</th>
                 {students.map((s, i) => (
-                  <th key={s.id} className="snap-col" style={{ padding: "4px 3px", background: "#111827", borderRight: i === students.length - 1 ? "none" : "2px solid #374151" }}>
+                  <th key={s.id} className="snap-col" style={{ width: STUDENT_COL_W, minWidth: STUDENT_COL_W, maxWidth: STUDENT_COL_W, padding: "4px 3px", background: "#111827", borderRight: i === students.length - 1 ? "none" : "2px solid #374151" }}>
                     <input
                       value={s.name}
                       onChange={(e) => updateStudentField(i, "name", e.target.value)}
                       onKeyDown={(e) => handleGridKeyDown(e, "name", i)}
                       data-field="name" data-col={i}
                       placeholder="학생명 입력"
-                      style={{ width: "100%", boxSizing: "border-box", textAlign: "center", padding: "4px 2px", fontSize: 12, border: "1px solid #4b5563", borderRadius: 4, color: "#111827", background: s.name ? "#fff" : "#f3f4f6" }}
+                      style={{ width: "100%", minWidth: 0, boxSizing: "border-box", textAlign: "center", padding: "4px 2px", fontSize: 12, border: "1px solid #4b5563", borderRadius: 4, color: "#111827", background: s.name ? "#fff" : "#f3f4f6" }}
                     />
                   </th>
                 ))}
@@ -1544,7 +1560,7 @@ function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle
     borderRight: isLast ? "none" : `2px solid ${theme.border}`,
   });
   const cellInput = {
-    width: "100%", maxWidth: 56, textAlign: "center", padding: "5px 2px", fontSize: 12,
+    width: "100%", minWidth: 0, maxWidth: 56, textAlign: "center", padding: "5px 2px", fontSize: 12,
     border: `1px solid ${theme.inputBorder}`, borderRadius: 4, background: theme.inputBg, boxSizing: "border-box",
   };
 
@@ -1942,7 +1958,7 @@ function PerformanceTable({ student }) {
     { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#D4A017" },
   ];
   const td = { padding: "7px 8px", fontSize: 12, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: "center" };
-  const labelTd = { ...td, whiteSpace: "nowrap" };
+  const labelTd = { ...td, whiteSpace: "normal" };
   const groupDivider = "2px solid #111827";
   return (
     <table className="perf-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, tableLayout: "fixed" }}>
@@ -1967,11 +1983,13 @@ function PerformanceTable({ student }) {
                     style={{ ...td, fontWeight: 700, textAlign: "center", verticalAlign: "middle", background: "#f3f4f6", borderTop: topBorder, lineHeight: 1.4 }}
                     rowSpan={g.defs.length}
                   >
-                    <div>{g.titleKr}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", letterSpacing: 0.3 }}>{g.titleEn}</div>
+                    {g.titleKr}
                   </td>
                 )}
-                <td className="perf-label-cell" style={{ ...labelTd, borderTop: topBorder }}>{d.label} {d.kr && `(${d.kr})`}</td>
+                <td className="perf-label-cell" style={{ ...labelTd, borderTop: topBorder, lineHeight: 1.3 }}>
+                  <div className="perf-label-en">{d.label}</div>
+                  {d.kr && <div className="perf-label-kr" style={{ color: "#6b7280" }}>({d.kr})</div>}
+                </td>
                 <td style={{ ...td, borderTop: topBorder }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ flex: 1, background: "#f1f5f9", borderRadius: 6, height: 14 }}>
