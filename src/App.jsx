@@ -1146,7 +1146,7 @@ function Step1({ form, setForm, onNext, onHome, editLocked, onUploadEdit }) {
             </div>
           )}
           <Field label="담임교사" required>
-            <input style={inputStyle} placeholder="예) Sophie" value={form.teacher} onChange={set("teacher")} />
+            <input style={inputStyle} placeholder="예) Lucy" value={form.teacher} onChange={set("teacher")} />
           </Field>
           <Field label="Class명" required>
             <input style={inputStyle} placeholder="예) Harvard" value={form.className} onChange={set("className")} />
@@ -1427,7 +1427,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
           <div style={{ padding: "0 26px 12px", color: "#dc2626", fontSize: 12 }}>⚠ {uploadError}</div>
         )}
 
-        <div ref={tableWrapRef} style={{ overflowX: "auto", padding: "18px 26px" }}>
+        <div ref={tableWrapRef} className="step2-table-scroll" style={{ overflowX: "auto", padding: "18px 26px" }}>
           <table style={{ borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: LABEL_W }} />
@@ -1439,7 +1439,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
                 <th style={{ ...rowLabelStyle, background: "#111827", color: "#fff", zIndex: 3 }}>학생명</th>
                 <th style={{ ...maxColStyle, background: "#111827", color: "#fff", zIndex: 3 }}>만점</th>
                 {students.map((s, i) => (
-                  <th key={s.id} style={{ padding: "4px 3px", background: "#111827", borderRight: i === students.length - 1 ? "none" : "2px solid #374151" }}>
+                  <th key={s.id} className="snap-col" style={{ padding: "4px 3px", background: "#111827", borderRight: i === students.length - 1 ? "none" : "2px solid #374151" }}>
                     <input
                       value={s.name}
                       onChange={(e) => updateStudentField(i, "name", e.target.value)}
@@ -1971,7 +1971,7 @@ function PerformanceTable({ student }) {
                     <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", letterSpacing: 0.3 }}>{g.titleEn}</div>
                   </td>
                 )}
-                <td style={{ ...labelTd, borderTop: topBorder }}>{d.label} {d.kr && `(${d.kr})`}</td>
+                <td className="perf-label-cell" style={{ ...labelTd, borderTop: topBorder }}>{d.label} {d.kr && `(${d.kr})`}</td>
                 <td style={{ ...td, borderTop: topBorder }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ flex: 1, background: "#f1f5f9", borderRadius: 6, height: 14 }}>

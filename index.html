@@ -140,6 +140,10 @@
         .step2-toolbar-actions button { width: 100% !important; }
         .stepper-btn { width: 40px !important; height: 40px !important; font-size: 18px !important; }
 
+        /* 학생 열을 스와이프할 때 한 명씩 착 멈추도록 스크롤 스냅 적용 */
+        .step2-table-scroll { scroll-snap-type: x mandatory !important; -webkit-overflow-scrolling: touch; }
+        .snap-col { scroll-snap-align: start; scroll-snap-stop: always; }
+
         /* Step3 최종 성적표 */
         .step3-toolbar { flex-direction: column !important; align-items: stretch !important; }
         .step3-nav { justify-content: center !important; }
@@ -159,6 +163,9 @@
         .score-table td, .score-table th { padding: 6px 4px !important; }
         .perf-table td, .perf-table th { padding: 5px 4px !important; }
         .grade-badge { width: auto !important; min-width: 0 !important; padding: 3px 8px !important; font-size: 10px !important; }
+
+        /* 세부항목 글자가 잘리던 버그 - 줄바꿈 허용 */
+        .perf-label-cell { white-space: normal !important; line-height: 1.3 !important; text-align: left !important; padding-left: 6px !important; }
       }
 
       /* ---- 태블릿 전용 (641px ~ 1024px, PC/모바일 규칙에는 영향 없음) ---- */
@@ -166,6 +173,9 @@
         .step3-actions { flex-wrap: wrap !important; justify-content: flex-end !important; }
         .stepper-btn { width: 38px !important; height: 38px !important; }
         .score-table, .perf-table { font-size: 12px !important; }
+        .perf-label-cell { white-space: normal !important; }
+        .step2-table-scroll { scroll-snap-type: x proximity !important; -webkit-overflow-scrolling: touch; }
+        .snap-col { scroll-snap-align: start; }
       }
     </style>
   </head>
