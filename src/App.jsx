@@ -168,17 +168,18 @@ function buildExcelFilename(form) {
 
 const DEFAULT_MAX = 10; // 참여도/태도/숙제 항목 공통 만점
 function clamp(value, max) {
+  if (value === "" || value === null || value === undefined) return "";
   const n = Number(value);
-  if (Number.isNaN(n)) return 0;
+  if (Number.isNaN(n)) return "";
   return Math.min(Math.max(n, 0), max);
 }
 
 function makeStudent(i, partDefs) {
   const base = { id: i, name: "", comment: "" };
-  (partDefs || []).forEach((p) => (base[p.key] = 0));
-  PARTICIPATION_DEFS.forEach((p) => (base[p.key] = 0));
-  BEHAVIOR_DEFS.forEach((p) => (base[p.key] = 0));
-  HOMEWORK_DEFS.forEach((p) => (base[p.key] = 0));
+  (partDefs || []).forEach((p) => (base[p.key] = ""));
+  PARTICIPATION_DEFS.forEach((p) => (base[p.key] = ""));
+  BEHAVIOR_DEFS.forEach((p) => (base[p.key] = ""));
+  HOMEWORK_DEFS.forEach((p) => (base[p.key] = ""));
   return base;
 }
 
@@ -191,6 +192,17 @@ function isStudentRegistered(student, partDefs) {
     ...HOMEWORK_DEFS.map((d) => d.key),
   ];
   return allKeys.some((k) => Number(student[k]) > 0);
+}
+
+// 이름이 입력된 학생인데 성적 칸 일부가 아직 "입력"(빈 값) 상태로 남아있는지 확인
+function findIncompleteStudents(students, partDefs) {
+  const allKeys = [
+    ...(partDefs || []).map((p) => p.key),
+    ...PARTICIPATION_DEFS.map((d) => d.key),
+    ...BEHAVIOR_DEFS.map((d) => d.key),
+    ...HOMEWORK_DEFS.map((d) => d.key),
+  ];
+  return students.filter((s) => s.name && s.name.trim() !== "" && allKeys.some((k) => s[k] === "" || s[k] === null || s[k] === undefined));
 }
 
 // 화면의 입력표와 동일한 행 구성 (라벨 / 만점 / 학생1 / 학생2 ...) - 선택된 교재의 partDefs 기준
@@ -399,7 +411,7 @@ async function parseExcelFile(file, partDefs, onSuccess, onError) {
       if (!def) return;
       students.forEach((s, i) => {
         const raw = row.getCell(3 + i).value;
-        s[def.key] = clamp(raw === null || raw === undefined || raw === "" ? 0 : raw, def.max);
+        s[def.key] = clamp(raw, def.max);
       });
     });
 
@@ -471,12 +483,34 @@ async function parseFullExcelForEdit(file, onSuccess, onError) {
 }
 
 // 최종 성적표를 A4 한 장 PDF로 다운로드 (html2canvas로 캡처 후 jsPDF로 저장 - 브라우저 인쇄창을 거치지 않음)
-async function downloadReportAsPdf(cardEl, filename) {
+// html2canvas가 flex justify-content:space-between을 안정적으로 반영하지 못하는 경우가 있어,
+// 캡처 직전에 실제 남는 여백을 JS로 계산해서 각 섹션 사이 margin-top으로 직접 나눠 넣는다.
+function fillCardHeightForCapture(cardEl, targetHeightPx) {
+  const children = Array.from(cardEl.children);
+  children.forEach((c) => c.style.removeProperty("margin-top"));
+  // 강제 리플로우 후 실측
+  // eslint-disable-next-line no-unused-expressions
+  cardEl.offsetHeight;
+  const naturalTotal = children.reduce((sum, c) => sum + c.getBoundingClientRect().height, 0);
+  const leftover = Math.max(0, targetHeightPx - naturalTotal);
+  const gapCount = children.length - 1;
+  const gapEach = gapCount > 0 ? leftover / gapCount : 0;
+  children.forEach((c, i) => {
+    if (i > 0) c.style.setProperty("margin-top", `${gapEach}px`, "important");
+  });
+  return () => children.forEach((c) => c.style.removeProperty("margin-top"));
+}
+
+async function downloadReportAsPdf(wrapperEl, filename) {
+  const cardEl = wrapperEl.querySelector(".report-card") || wrapperEl;
+  const revert = fillCardHeightForCapture(cardEl, 1047);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const canvas = await html2canvas(cardEl, {
     scale: 2,
     backgroundColor: "#ffffff",
     useCORS: true,
   });
+  revert();
   const imgData = canvas.toDataURL("image/png");
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const marginMm = 8;
@@ -938,12 +972,179 @@ const EXAM_ANSWER_LEVELS = {
 };
 function examUrl(textbook, level) {
   const slug = EXAM_ANSWER_SLUG[textbook];
-  return `/exams/${slug}/${level}.pdf`;
+  const fname = EXAM_FILENAMES[textbook] && EXAM_FILENAMES[textbook][level];
+  return `/exams/${slug}/${level}/${encodeURIComponent(fname)}`;
 }
 function answerUrl(textbook, level) {
   const slug = EXAM_ANSWER_SLUG[textbook];
-  return `/answers/${slug}/${level}.pdf`;
+  const fname = ANSWER_FILENAMES[textbook] && ANSWER_FILENAMES[textbook][level];
+  return `/answers/${slug}/${level}/${encodeURIComponent(fname)}`;
 }
+const EXAM_FILENAMES = {
+  "Baby Bird's Adventure": {
+    1: "[시험지] Gplum Baby Bird's Adventure 1 Final Test.pdf",
+    2: "[시험지] Gplum Baby Bird's Adventure 2 Final Test.pdf",
+    3: "[시험지] Gplum Baby Bird's Adventure 3 Final Test.pdf",
+    4: "[시험지] Gplum Baby Bird's Adventure 4 Final Test.pdf",
+  },
+  "Daily Talk L1": {
+    1: "[시험지] Gplum Daily Talk L1-1 Final Test.pdf",
+    2: "[시험지] Gplum Daily Talk L1-2 Final Test.pdf",
+    3: "[시험지] Gplum Daily Talk L1-3 Final Test.pdf",
+    4: "[시험지] Gplum Daily Talk L1-4 Final Test.pdf",
+  },
+  "Daily Talk L2": {
+    1: "[시험지] Gplum Daily Talk L2-1 Final Test.pdf",
+    2: "[시험지] Gplum Daily Talk L2-2 Final Test.pdf",
+    3: "[시험지] Gplum Daily Talk L2-3 Final Test.pdf",
+  },
+  "Here We Go!": {
+    1: "[시험지] Gplum Here We Go! 1 Final Test.pdf",
+    2: "[시험지] Gplum Here We Go! 2 Final Test.pdf",
+    3: "[시험지] Gplum Here We Go! 3 Final Test.pdf",
+    4: "[시험지] Gplum Here We Go! 4 Final Test.pdf",
+  },
+  "Listen to Me! L1": {
+    1: "[시험지] Gplum Listen to Me! L1-1 Final Test.pdf",
+    2: "[시험지] Gplum Listen to Me! L1-2 Final Test.pdf",
+    3: "[시험지] Gplum Listen to Me! L1-3 Final Test.pdf",
+  },
+  "Mr.Grammar": {
+    1: "[시험지] Gplum Mr. Grammar 1 Final Test.pdf",
+    2: "[시험지] Gplum Mr. Grammar 2 Final Test.pdf",
+    3: "[시험지] Gplum Mr. Grammar 3 Final Test.pdf",
+    4: "[시험지] Gplum Mr. Grammar 4 Final Test.pdf",
+  },
+  "Never Study Land": {
+    1: "[시험지] Gplum Never Study Land 1 Final Test.pdf",
+    2: "[시험지] Gplum Never Study Land 2 Final Test.pdf",
+    3: "[시험지] Gplum Never Study Land 3 Final Test.pdf",
+    4: "[시험지] Gplum Never Study Land 4 Final Test.pdf",
+  },
+  "Phonics Buddy": {
+    1: "[시험지] Gplum Phonics Buddy Final Test.pdf",
+    2: "[시험지] Gplum Phonics Buddy 2 Final Test.pdf",
+    3: "[시험지] Gplum Phonics Buddy 3 Final Test.pdf",
+    4: "[시험지] Gplum Phonics Buddy 4 Final Test.pdf",
+  },
+  "Phonics Is Fun": {
+    1: "[시험지] Gplum Phonics Is Fun 1 Final Test.pdf",
+    2: "[시험지] Gplum Phonics Is Fun 2 Final Test.pdf",
+    3: "[시험지] Gplum Phonics Is Fun 3 Final Test.pdf",
+  },
+  "Read Right L1": {
+    1: "[시험지] Gplum Read Right L1-1 Final Test.pdf",
+    2: "[시험지] Gplum Read Right L1-2 Final Test.pdf",
+    3: "[시험지] Gplum Read Right L1-3 Final Test.pdf",
+    4: "[시험지] Gplum Read Right L1-4 Final Test.pdf",
+  },
+  "Read Right L2": {
+    1: "[시험지] Gplum Read Right L2-1 Final Test.pdf",
+    2: "[시험지] Gplum Read Right L2-2 Final Test.pdf",
+    3: "[시험지] Gplum Read Right L2-3 Final Test.pdf",
+    4: "[시험지] Gplum Read Right L2-4 Final Test.pdf",
+  },
+  "Susie's Day": {
+    1: "[시험지] Gplum Susie's Day 1 Final Test.pdf",
+    2: "[시험지] Gplum Susie's Day 2 Final Test.pdf",
+    3: "[시험지] Gplum Susie's Day 3 Final Test.pdf",
+    4: "[시험지] Gplum Susie's Day 4 Final Test.pdf",
+  },
+  "What Do You Do?": {
+    1: "[시험지] Gplum What Do You Do 1 Final Test.pdf",
+    2: "[시험지] Gplum What Do You Do 2 Final Test.pdf",
+    3: "[시험지] Gplum What Do You Do 3 Final Test.pdf",
+  },
+  "Where's Coco?": {
+    1: "[시험지] Gplum Where's Coco？1 Final Test.pdf",
+    2: "[시험지] Gplum Where's Coco？2 Final Test.pdf",
+    3: "[시험지] Gplum Where's Coco？3 Final Test.pdf",
+    4: "[시험지] Gplum Where's Coco？4 Final Test.pdf",
+  },
+};
+const ANSWER_FILENAMES = {
+  "Baby Bird's Adventure": {
+    1: "[답안지] Gplum Baby Bird's Adventure 1 Final Test.pdf",
+    2: "[답안지] Gplum Baby Bird's Adventure 2 Final Test.pdf",
+    3: "[답안지] Gplum Baby Bird's Adventure 3 Final Test.pdf",
+    4: "[답안지] Gplum Baby Bird's Adventure 4 Final Test.pdf",
+  },
+  "Daily Talk L1": {
+    1: "[답안지] Gplum Daily Talk L1-1 Final Test.pdf",
+    2: "[답안지] Gplum Daily Talk L1-2 Final Test.pdf",
+    3: "[답안지] Gplum Daily Talk L1-3 Final Test.pdf",
+    4: "[답안지] Gplum Daily Talk L1-4 Final Test.pdf",
+  },
+  "Daily Talk L2": {
+    1: "[답안지] Gplum Daily Talk L2-1 Final Test.pdf",
+    2: "[답안지] Gplum Daily Talk L2-2 Final Test.pdf",
+    3: "[답안지] Gplum Daily Talk L2-3 Final Test.pdf",
+  },
+  "Here We Go!": {
+    1: "[답안지] Gplum Here We Go! 1 Final Test.pdf",
+    2: "[답안지] Gplum Here We Go! 2 Final Test.pdf",
+    3: "[답안지] Gplum Here We Go! 3 Final Test.pdf",
+    4: "[답안지] Gplum Here We Go! 4 Final Test.pdf",
+  },
+  "Listen to Me! L1": {
+    1: "[답안지] Gplum Listen to Me! L1-1 Final Test.pdf",
+    2: "[답안지] Gplum Listen to Me! L1-2 Final Test.pdf",
+    3: "[답안지] Gplum Listen to Me! L1-3 Final Test.pdf",
+  },
+  "Mr.Grammar": {
+    1: "[답안지] Gplum Mr. Grammar 1 Final Test.pdf",
+    2: "[답안지] Gplum Mr. Grammar 2 Final Test.pdf",
+    3: "[답안지] Gplum Mr. Grammar 3 Final Test.pdf",
+    4: "[답안지] Gplum Mr. Grammar 4 Final Test.pdf",
+  },
+  "Never Study Land": {
+    1: "[답안지] Gplum Never Study Land 1 Final Test.pdf",
+    2: "[답안지] Gplum Never Study Land 2 Final Test.pdf",
+    3: "[답안지] Gplum Never Study Land 3 Final Test.pdf",
+    4: "[답안지] Gplum Never Study Land 4 Final Test.pdf",
+  },
+  "Phonics Buddy": {
+    1: "[답안지] Gplum Phonics Buddy 1 Final Test.pdf",
+    2: "[답안지] Gplum Phonics Buddy 2 Final Test.pdf",
+    3: "[답안지] Gplum Phonics Buddy 3 Final Test.pdf",
+    4: "[답안지] Gplum Phonics Buddy 4 Final Test.pdf",
+  },
+  "Phonics Is Fun": {
+    1: "[답안지] Gplum Phonics is Fun 1 Final Test.pdf",
+    2: "[답안지] Gplum Phonics is Fun 2 Final Test.pdf",
+    3: "[답안지] Gplum Phonics is Fun 3 Final Test.pdf",
+  },
+  "Read Right L1": {
+    1: "[답안지] Gplum Read Right L1-1 Final Test.pdf",
+    2: "[답안지] Gplum Read Right L1-2 Final Test.pdf",
+    3: "[답안지] Gplum Read Right L1-3 Final Test.pdf",
+    4: "[답안지] Gplum Read Right L1-4 Final Test.pdf",
+  },
+  "Read Right L2": {
+    1: "[답안지] Gplum Read Right L2-1 Final Test.pdf",
+    2: "[답안지] Gplum Read Right L2-2 Final Test.pdf",
+    3: "[답안지] Gplum Read Right L2-3 Final Test.pdf",
+    4: "[답안지] Gplum Read Right L2-4 Final Test.pdf",
+  },
+  "Susie's Day": {
+    1: "[답안지] Gplum Susie's Day 1 Final Test.pdf",
+    2: "[답안지] Gplum Susie's Day 2 Final Test.pdf",
+    3: "[답안지] Gplum Susie's Day 3 Final Test.pdf",
+    4: "[답안지] Gplum Susie's Day 4 Final Test.pdf",
+  },
+  "What Do You Do?": {
+    1: "[답안지] Gplum What Do You Do 1 Final Test.pdf",
+    2: "[답안지] Gplum What Do You Do 2 Final Test.pdf",
+    3: "[답안지] Gplum What Do You Do 3 Final Test.pdf",
+  },
+  "Where's Coco?": {
+    1: "[답안지] Gplum Where's Coco？1 Final Test.pdf",
+    2: "[답안지] Gplum Where's Coco？2 Final Test.pdf",
+    3: "[답안지] Gplum Where's Coco？3 Final Test.pdf",
+    4: "[답안지] Gplum Where's Coco？4 Final Test.pdf",
+  },
+};
+
 function downloadFile(url, filename) {
   const a = document.createElement("a");
   a.href = url;
@@ -1088,7 +1289,10 @@ function ExamHome({ onHome }) {
       title="Final Test 시험지 다운로드"
       subtitle="시험지"
       onHome={onHome}
-      onPick={(t, lv) => downloadFile(examUrl(t, lv), `${t}_${lv}권_시험지.pdf`)}
+      onPick={(t, lv) => {
+        const original = EXAM_FILENAMES[t] && EXAM_FILENAMES[t][lv];
+        downloadFile(examUrl(t, lv), original || `[시험지] ${t} ${lv} Final Test.pdf`);
+      }}
     />
   );
 }
@@ -1531,9 +1735,9 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
   const groupMaxStyle = { ...maxColStyle, background: "#f1f5f9", borderBottom: "1px solid #d1d5db" };
 
   const dataCellStyle = (i, isLast) => ({
-    padding: 3, background: i % 2 === 0 ? "#fef9c3" : "#fef3c7",
-    borderRight: isLast ? "none" : "2px solid #fbbf24",
-    borderBottom: "1px solid #fde68a",
+    padding: 3, background: i % 2 === 0 ? "#FEF6F1" : "#FCE9E1",
+    borderRight: isLast ? "none" : "2px solid #F0997B",
+    borderBottom: "1px solid #F5C4AC",
     textAlign: "center",
   });
   const cellInput = {
@@ -1669,6 +1873,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
                       onKeyDown={(e) => handleGridKeyDown(e, "name", i)}
                       data-field="name" data-col={i}
                       placeholder="학생명 입력"
+                      className="student-name-input"
                       style={{ width: "100%", minWidth: 0, height: 34, boxSizing: "border-box", textAlign: "center", padding: "4px 2px", fontSize: 13, fontWeight: 600, border: "1px solid #4b5563", borderRadius: 6, color: "#111827", background: s.name ? "#fff" : "#374151" }}
                     />
                   </th>
@@ -1691,6 +1896,8 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => handleGridKeyDown(e, p.key, i)}
                         data-field={p.key} data-col={i}
+                        placeholder="입력"
+                        className="score-input"
                         style={cellInput}
                       />
                     </td>
@@ -1715,7 +1922,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
               />
 
               <tr>
-                <td style={{ ...rowLabelStyle, background: "#F7C7D8", color: "#7A1F3D" }}>Teacher's Comments</td>
+                <td style={{ ...rowLabelStyle, background: "#F7C7D8", color: "#7A1F3D", verticalAlign: "middle", whiteSpace: "normal" }}>Teacher's Comments</td>
                 <td style={{ ...maxColStyle, background: "#f1f5f9" }}>-</td>
                 {students.map((s, i) => (
                   <td key={s.id} style={{ padding: 4, background: i % 2 === 0 ? "#FDF4F7" : "#FBEAF0", borderRight: i === students.length - 1 ? "none" : "2px solid #ED93B1" }}>
@@ -1741,7 +1948,17 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
 
         <div style={{ padding: "18px 26px", display: "flex", justifyContent: "space-between", borderTop: "1px solid #f1f5f9" }}>
           <button onClick={onBack} style={secondaryBtn}>← 이전</button>
-          <button onClick={onNext} style={primaryBtn}>확인 → 최종 성적표 보기</button>
+          <button
+            onClick={() => {
+              const incomplete = findIncompleteStudents(students, partDefs);
+              if (incomplete.length > 0) {
+                alert("성적 입력이 완료되지 않았습니다.");
+                return;
+              }
+              onNext();
+            }}
+            style={primaryBtn}
+          >확인 → 최종 성적표 보기</button>
         </div>
       </div>
     </div>
@@ -1791,6 +2008,8 @@ function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle
                 onFocus={(e) => e.target.select()}
                 onKeyDown={(e) => onNav(e, d.key, i)}
                 data-field={d.key} data-col={i}
+                placeholder="입력"
+                className="score-input"
                 style={cellInput}
               />
             </td>
@@ -1910,12 +2129,17 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
 
       for (let i = 0; i < cards.length; i++) {
         const el = cards[i];
-        el.classList.add("pdf-capture-mode");
+        const wrap = el.parentElement || el; // CSS가 .pdf-capture-mode .report-card (자손 선택자)라서 부모에 클래스를 걸어야 함
+        wrap.classList.add("pdf-capture-mode");
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const revert = fillCardHeightForCapture(el, 1047);
         // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         // eslint-disable-next-line no-await-in-loop
         const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-        el.classList.remove("pdf-capture-mode");
+        revert();
+        wrap.classList.remove("pdf-capture-mode");
         const imgData = canvas.toDataURL("image/png");
         const contentHeightMm = (canvas.height * contentWidthMm) / canvas.width;
         if (i > 0) pdf.addPage();
