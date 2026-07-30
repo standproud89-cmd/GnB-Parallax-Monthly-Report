@@ -503,7 +503,7 @@ function fillCardHeightForCapture(cardEl, targetHeightPx) {
 
 async function downloadReportAsPdf(wrapperEl, filename) {
   const cardEl = wrapperEl.querySelector(".report-card") || wrapperEl;
-  const revert = fillCardHeightForCapture(cardEl, 1028);
+  const revert = fillCardHeightForCapture(cardEl, 945);
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const canvas = await html2canvas(cardEl, {
     scale: 2,
@@ -513,7 +513,7 @@ async function downloadReportAsPdf(wrapperEl, filename) {
   revert();
   const imgData = canvas.toDataURL("image/png");
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const marginMm = 8;
+  const marginMm = 10;
   const contentWidthMm = 210 - marginMm * 2;
   const contentHeightMm = (canvas.height * contentWidthMm) / canvas.width;
   pdf.addImage(imgData, "PNG", marginMm, marginMm, contentWidthMm, Math.min(contentHeightMm, 297 - marginMm * 2));
@@ -982,166 +982,166 @@ function answerUrl(textbook, level) {
 }
 const EXAM_FILENAMES = {
   "Baby Bird's Adventure": {
-    1: "[시험지] Gplum Baby Bird's Adventure 1 Final Test.pdf",
-    2: "[시험지] Gplum Baby Bird's Adventure 2 Final Test.pdf",
-    3: "[시험지] Gplum Baby Bird's Adventure 3 Final Test.pdf",
-    4: "[시험지] Gplum Baby Bird's Adventure 4 Final Test.pdf",
+    1: "Exam_BBA_1.pdf",
+    2: "Exam_BBA_2.pdf",
+    3: "Exam_BBA_3.pdf",
+    4: "Exam_BBA_4.pdf",
   },
   "Daily Talk L1": {
-    1: "[시험지] Gplum Daily Talk L1-1 Final Test.pdf",
-    2: "[시험지] Gplum Daily Talk L1-2 Final Test.pdf",
-    3: "[시험지] Gplum Daily Talk L1-3 Final Test.pdf",
-    4: "[시험지] Gplum Daily Talk L1-4 Final Test.pdf",
+    1: "Exam_DTL1_1.pdf",
+    2: "Exam_DTL1_2.pdf",
+    3: "Exam_DTL1_3.pdf",
+    4: "Exam_DTL1_4.pdf",
   },
   "Daily Talk L2": {
-    1: "[시험지] Gplum Daily Talk L2-1 Final Test.pdf",
-    2: "[시험지] Gplum Daily Talk L2-2 Final Test.pdf",
-    3: "[시험지] Gplum Daily Talk L2-3 Final Test.pdf",
+    1: "Exam_DTL2_1.pdf",
+    2: "Exam_DTL2_2.pdf",
+    3: "Exam_DTL2_3.pdf",
   },
   "Here We Go!": {
-    1: "[시험지] Gplum Here We Go! 1 Final Test.pdf",
-    2: "[시험지] Gplum Here We Go! 2 Final Test.pdf",
-    3: "[시험지] Gplum Here We Go! 3 Final Test.pdf",
-    4: "[시험지] Gplum Here We Go! 4 Final Test.pdf",
+    1: "Exam_HWG_1.pdf",
+    2: "Exam_HWG_2.pdf",
+    3: "Exam_HWG_3.pdf",
+    4: "Exam_HWG_4.pdf",
   },
   "Listen to Me! L1": {
-    1: "[시험지] Gplum Listen to Me! L1-1 Final Test.pdf",
-    2: "[시험지] Gplum Listen to Me! L1-2 Final Test.pdf",
-    3: "[시험지] Gplum Listen to Me! L1-3 Final Test.pdf",
+    1: "Exam_LTM1_1.pdf",
+    2: "Exam_LTM1_2.pdf",
+    3: "Exam_LTM1_3.pdf",
   },
   "Mr.Grammar": {
-    1: "[시험지] Gplum Mr. Grammar 1 Final Test.pdf",
-    2: "[시험지] Gplum Mr. Grammar 2 Final Test.pdf",
-    3: "[시험지] Gplum Mr. Grammar 3 Final Test.pdf",
-    4: "[시험지] Gplum Mr. Grammar 4 Final Test.pdf",
+    1: "Exam_GRM_1.pdf",
+    2: "Exam_GRM_2.pdf",
+    3: "Exam_GRM_3.pdf",
+    4: "Exam_GRM_4.pdf",
   },
   "Never Study Land": {
-    1: "[시험지] Gplum Never Study Land 1 Final Test.pdf",
-    2: "[시험지] Gplum Never Study Land 2 Final Test.pdf",
-    3: "[시험지] Gplum Never Study Land 3 Final Test.pdf",
-    4: "[시험지] Gplum Never Study Land 4 Final Test.pdf",
+    1: "Exam_NSL_1.pdf",
+    2: "Exam_NSL_2.pdf",
+    3: "Exam_NSL_3.pdf",
+    4: "Exam_NSL_4.pdf",
   },
   "Phonics Buddy": {
-    1: "[시험지] Gplum Phonics Buddy Final Test.pdf",
-    2: "[시험지] Gplum Phonics Buddy 2 Final Test.pdf",
-    3: "[시험지] Gplum Phonics Buddy 3 Final Test.pdf",
-    4: "[시험지] Gplum Phonics Buddy 4 Final Test.pdf",
+    1: "Exam_PBD_1.pdf",
+    2: "Exam_PBD_2.pdf",
+    3: "Exam_PBD_3.pdf",
+    4: "Exam_PBD_4.pdf",
   },
   "Phonics Is Fun": {
-    1: "[시험지] Gplum Phonics Is Fun 1 Final Test.pdf",
-    2: "[시험지] Gplum Phonics Is Fun 2 Final Test.pdf",
-    3: "[시험지] Gplum Phonics Is Fun 3 Final Test.pdf",
+    1: "Exam_PIF_1.pdf",
+    2: "Exam_PIF_2.pdf",
+    3: "Exam_PIF_3.pdf",
   },
   "Read Right L1": {
-    1: "[시험지] Gplum Read Right L1-1 Final Test.pdf",
-    2: "[시험지] Gplum Read Right L1-2 Final Test.pdf",
-    3: "[시험지] Gplum Read Right L1-3 Final Test.pdf",
-    4: "[시험지] Gplum Read Right L1-4 Final Test.pdf",
+    1: "Exam_RRL1_1.pdf",
+    2: "Exam_RRL1_2.pdf",
+    3: "Exam_RRL1_3.pdf",
+    4: "Exam_RRL1_4.pdf",
   },
   "Read Right L2": {
-    1: "[시험지] Gplum Read Right L2-1 Final Test.pdf",
-    2: "[시험지] Gplum Read Right L2-2 Final Test.pdf",
-    3: "[시험지] Gplum Read Right L2-3 Final Test.pdf",
-    4: "[시험지] Gplum Read Right L2-4 Final Test.pdf",
+    1: "Exam_RRL2_1.pdf",
+    2: "Exam_RRL2_2.pdf",
+    3: "Exam_RRL2_3.pdf",
+    4: "Exam_RRL2_4.pdf",
   },
   "Susie's Day": {
-    1: "[시험지] Gplum Susie's Day 1 Final Test.pdf",
-    2: "[시험지] Gplum Susie's Day 2 Final Test.pdf",
-    3: "[시험지] Gplum Susie's Day 3 Final Test.pdf",
-    4: "[시험지] Gplum Susie's Day 4 Final Test.pdf",
+    1: "Exam_SD_1.pdf",
+    2: "Exam_SD_2.pdf",
+    3: "Exam_SD_3.pdf",
+    4: "Exam_SD_4.pdf",
   },
   "What Do You Do?": {
-    1: "[시험지] Gplum What Do You Do 1 Final Test.pdf",
-    2: "[시험지] Gplum What Do You Do 2 Final Test.pdf",
-    3: "[시험지] Gplum What Do You Do 3 Final Test.pdf",
+    1: "Exam_WDYD_1.pdf",
+    2: "Exam_WDYD_2.pdf",
+    3: "Exam_WDYD_3.pdf",
   },
   "Where's Coco?": {
-    1: "[시험지] Gplum Where's Coco？1 Final Test.pdf",
-    2: "[시험지] Gplum Where's Coco？2 Final Test.pdf",
-    3: "[시험지] Gplum Where's Coco？3 Final Test.pdf",
-    4: "[시험지] Gplum Where's Coco？4 Final Test.pdf",
+    1: "Exam_WC_1.pdf",
+    2: "Exam_WC_2.pdf",
+    3: "Exam_WC_3.pdf",
+    4: "Exam_WC_4.pdf",
   },
 };
 const ANSWER_FILENAMES = {
   "Baby Bird's Adventure": {
-    1: "[답안지] Gplum Baby Bird's Adventure 1 Final Test.pdf",
-    2: "[답안지] Gplum Baby Bird's Adventure 2 Final Test.pdf",
-    3: "[답안지] Gplum Baby Bird's Adventure 3 Final Test.pdf",
-    4: "[답안지] Gplum Baby Bird's Adventure 4 Final Test.pdf",
+    1: "Answers_BBA_1.pdf",
+    2: "Answers_BBA_2.pdf",
+    3: "Answers_BBA_3.pdf",
+    4: "Answers_BBA_4.pdf",
   },
   "Daily Talk L1": {
-    1: "[답안지] Gplum Daily Talk L1-1 Final Test.pdf",
-    2: "[답안지] Gplum Daily Talk L1-2 Final Test.pdf",
-    3: "[답안지] Gplum Daily Talk L1-3 Final Test.pdf",
-    4: "[답안지] Gplum Daily Talk L1-4 Final Test.pdf",
+    1: "Answers_DTL1_1.pdf",
+    2: "Answers_DTL1_2.pdf",
+    3: "Answers_DTL1_3.pdf",
+    4: "Answers_DTL1_4.pdf",
   },
   "Daily Talk L2": {
-    1: "[답안지] Gplum Daily Talk L2-1 Final Test.pdf",
-    2: "[답안지] Gplum Daily Talk L2-2 Final Test.pdf",
-    3: "[답안지] Gplum Daily Talk L2-3 Final Test.pdf",
+    1: "Answers_DTL2_1.pdf",
+    2: "Answers_DTL2_2.pdf",
+    3: "Answers_DTL2_3.pdf",
   },
   "Here We Go!": {
-    1: "[답안지] Gplum Here We Go! 1 Final Test.pdf",
-    2: "[답안지] Gplum Here We Go! 2 Final Test.pdf",
-    3: "[답안지] Gplum Here We Go! 3 Final Test.pdf",
-    4: "[답안지] Gplum Here We Go! 4 Final Test.pdf",
+    1: "Answers_HWG_1.pdf",
+    2: "Answers_HWG_2.pdf",
+    3: "Answers_HWG_3.pdf",
+    4: "Answers_HWG_4.pdf",
   },
   "Listen to Me! L1": {
-    1: "[답안지] Gplum Listen to Me! L1-1 Final Test.pdf",
-    2: "[답안지] Gplum Listen to Me! L1-2 Final Test.pdf",
-    3: "[답안지] Gplum Listen to Me! L1-3 Final Test.pdf",
+    1: "Answers_LTM1_1.pdf",
+    2: "Answers_LTM1_2.pdf",
+    3: "Answers_LTM1_3.pdf",
   },
   "Mr.Grammar": {
-    1: "[답안지] Gplum Mr. Grammar 1 Final Test.pdf",
-    2: "[답안지] Gplum Mr. Grammar 2 Final Test.pdf",
-    3: "[답안지] Gplum Mr. Grammar 3 Final Test.pdf",
-    4: "[답안지] Gplum Mr. Grammar 4 Final Test.pdf",
+    1: "Answers_GRM_1.pdf",
+    2: "Answers_GRM_2.pdf",
+    3: "Answers_GRM_3.pdf",
+    4: "Answers_GRM_4.pdf",
   },
   "Never Study Land": {
-    1: "[답안지] Gplum Never Study Land 1 Final Test.pdf",
-    2: "[답안지] Gplum Never Study Land 2 Final Test.pdf",
-    3: "[답안지] Gplum Never Study Land 3 Final Test.pdf",
-    4: "[답안지] Gplum Never Study Land 4 Final Test.pdf",
+    1: "Answers_NSL_1.pdf",
+    2: "Answers_NSL_2.pdf",
+    3: "Answers_NSL_3.pdf",
+    4: "Answers_NSL_4.pdf",
   },
   "Phonics Buddy": {
-    1: "[답안지] Gplum Phonics Buddy 1 Final Test.pdf",
-    2: "[답안지] Gplum Phonics Buddy 2 Final Test.pdf",
-    3: "[답안지] Gplum Phonics Buddy 3 Final Test.pdf",
-    4: "[답안지] Gplum Phonics Buddy 4 Final Test.pdf",
+    1: "Answers_PBD_1.pdf",
+    2: "Answers_PBD_2.pdf",
+    3: "Answers_PBD_3.pdf",
+    4: "Answers_PBD_4.pdf",
   },
   "Phonics Is Fun": {
-    1: "[답안지] Gplum Phonics is Fun 1 Final Test.pdf",
-    2: "[답안지] Gplum Phonics is Fun 2 Final Test.pdf",
-    3: "[답안지] Gplum Phonics is Fun 3 Final Test.pdf",
+    1: "Answers_PIF_1.pdf",
+    2: "Answers_PIF_2.pdf",
+    3: "Answers_PIF_3.pdf",
   },
   "Read Right L1": {
-    1: "[답안지] Gplum Read Right L1-1 Final Test.pdf",
-    2: "[답안지] Gplum Read Right L1-2 Final Test.pdf",
-    3: "[답안지] Gplum Read Right L1-3 Final Test.pdf",
-    4: "[답안지] Gplum Read Right L1-4 Final Test.pdf",
+    1: "Answers_RRL1_1.pdf",
+    2: "Answers_RRL1_2.pdf",
+    3: "Answers_RRL1_3.pdf",
+    4: "Answers_RRL1_4.pdf",
   },
   "Read Right L2": {
-    1: "[답안지] Gplum Read Right L2-1 Final Test.pdf",
-    2: "[답안지] Gplum Read Right L2-2 Final Test.pdf",
-    3: "[답안지] Gplum Read Right L2-3 Final Test.pdf",
-    4: "[답안지] Gplum Read Right L2-4 Final Test.pdf",
+    1: "Answers_RRL2_1.pdf",
+    2: "Answers_RRL2_2.pdf",
+    3: "Answers_RRL2_3.pdf",
+    4: "Answers_RRL2_4.pdf",
   },
   "Susie's Day": {
-    1: "[답안지] Gplum Susie's Day 1 Final Test.pdf",
-    2: "[답안지] Gplum Susie's Day 2 Final Test.pdf",
-    3: "[답안지] Gplum Susie's Day 3 Final Test.pdf",
-    4: "[답안지] Gplum Susie's Day 4 Final Test.pdf",
+    1: "Answers_SD_1.pdf",
+    2: "Answers_SD_2.pdf",
+    3: "Answers_SD_3.pdf",
+    4: "Answers_SD_4.pdf",
   },
   "What Do You Do?": {
-    1: "[답안지] Gplum What Do You Do 1 Final Test.pdf",
-    2: "[답안지] Gplum What Do You Do 2 Final Test.pdf",
-    3: "[답안지] Gplum What Do You Do 3 Final Test.pdf",
+    1: "Answers_WDYD_1.pdf",
+    2: "Answers_WDYD_2.pdf",
+    3: "Answers_WDYD_3.pdf",
   },
   "Where's Coco?": {
-    1: "[답안지] Gplum Where's Coco？1 Final Test.pdf",
-    2: "[답안지] Gplum Where's Coco？2 Final Test.pdf",
-    3: "[답안지] Gplum Where's Coco？3 Final Test.pdf",
-    4: "[답안지] Gplum Where's Coco？4 Final Test.pdf",
+    1: "Answers_WC_1.pdf",
+    2: "Answers_WC_2.pdf",
+    3: "Answers_WC_3.pdf",
+    4: "Answers_WC_4.pdf",
   },
 };
 
@@ -2124,7 +2124,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
       if (!cards.length) throw new Error("성적표를 찾을 수 없습니다.");
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const marginMm = 8;
+      const marginMm = 10;
       const contentWidthMm = 210 - marginMm * 2;
 
       for (let i = 0; i < cards.length; i++) {
@@ -2133,7 +2133,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
         wrap.classList.add("pdf-capture-mode");
         // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        const revert = fillCardHeightForCapture(el, 1028);
+        const revert = fillCardHeightForCapture(el, 945);
         // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         // eslint-disable-next-line no-await-in-loop

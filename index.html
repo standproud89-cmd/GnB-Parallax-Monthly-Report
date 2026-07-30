@@ -12,7 +12,7 @@
       .perf-label-kr { font-size: 10.5px; }
 
       @media print {
-        @page { size: A4; margin: 8mm; }
+        @page { size: A4; margin: 10mm; }
         html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
@@ -33,7 +33,7 @@
           border: 1px solid #e5e7eb !important;
           display: flex !important;
           flex-direction: column !important;
-          height: 272mm !important;
+          height: 250mm !important;
           justify-content: space-between !important;
           overflow: hidden !important;
         }
@@ -77,8 +77,8 @@
 
       /* PDF 다운로드용 캡처 모드 - @media print과 동일한 수치를 고정 픽셀 폭으로 재현 (A4 794x1123px 기준, 안전 영역 약 730x1050px) */
       .pdf-capture-mode .report-card {
-        width: 733px !important;
-        height: 1028px !important;
+        width: 718px !important;
+        height: 945px !important;
         margin: 0 auto !important;
         box-shadow: none !important;
         border-radius: 0 !important;
