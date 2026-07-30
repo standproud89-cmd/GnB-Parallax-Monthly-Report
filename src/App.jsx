@@ -628,6 +628,14 @@ export default function App() {
     return <AudioHome onHome={() => setEntry(null)} />;
   }
 
+  if (entry === "answers") {
+    return <AnswerHome onHome={() => setEntry(null)} />;
+  }
+
+  if (entry === "exams") {
+    return <ExamHome onHome={() => setEntry(null)} />;
+  }
+
   return (
     <div className="app-shell" style={{ minHeight: "100vh", background: "#f3f4f6", fontFamily: "'Pretendard','Malgun Gothic',sans-serif" }}>
       <StepIndicator step={step} />
@@ -738,6 +746,32 @@ function Landing({ onSelect }) {
             <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>성적표 입력</div>
             <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>학생 성적을 입력하고 성적표를 출력합니다</div>
             <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "grades" ? accent : "#d1d5db" }}>시작하기 →</div>
+          </button>
+
+          <button
+            onClick={() => onSelect("answers")}
+            style={cardStyle("answers")}
+            onMouseEnter={() => setHover("answers")}
+            onMouseLeave={() => setHover(null)}
+          >
+            <div style={badgeStyle}>📋</div>
+            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>답안지 보기</div>
+            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>교재별 Final Test 답안지를 바로 확인합니다</div>
+            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "answers" ? accent : "#d1d5db" }}>시작하기 →</div>
+          </button>
+
+          <button
+            onClick={() => onSelect("exams")}
+            style={cardStyle("exams")}
+            onMouseEnter={() => setHover("exams")}
+            onMouseLeave={() => setHover(null)}
+          >
+            <div style={badgeStyle}>📄</div>
+            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>시험지 다운로드</div>
+            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>교재별 Final Test 시험지를 다운로드합니다</div>
+            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "exams" ? accent : "#d1d5db" }}>시작하기 →</div>
           </button>
         </div>
       </div>
@@ -867,6 +901,58 @@ function audioPartOf(filename) {
   return m ? `Part ${m[1]}` : "기타";
 }
 
+// ---------- Final Test 시험지 다운로드 / 답안지 보기 ----------
+// 교재명 -> 폴더 슬러그 (public/exams/{slug}/{level}.pdf, public/answers/{slug}/{level}.pdf)
+const EXAM_ANSWER_SLUG = {
+  "Baby Bird's Adventure": "baby-bird-s-adventure",
+  "Daily Talk L1": "daily-talk-l1",
+  "Daily Talk L2": "daily-talk-l2",
+  "Here We Go!": "here-we-go",
+  "Listen to Me! L1": "listen-to-me-l1",
+  "Mr.Grammar": "mr-grammar",
+  "Never Study Land": "never-study-land",
+  "Phonics Buddy": "phonics-buddy",
+  "Phonics Is Fun": "phonics-is-fun",
+  "Read Right L1": "read-right-l1",
+  "Read Right L2": "read-right-l2",
+  "Susie's Day": "susie-s-day",
+  "What Do You Do?": "what-do-you-do",
+  "Where's Coco?": "where-s-coco",
+};
+// 교재명 -> 실제로 파일이 준비된 권 목록
+const EXAM_ANSWER_LEVELS = {
+  "Baby Bird's Adventure": [1, 2, 3, 4],
+  "Daily Talk L1": [1, 2, 3, 4],
+  "Daily Talk L2": [1, 2, 3],
+  "Here We Go!": [1, 2, 3, 4],
+  "Listen to Me! L1": [1, 2, 3],
+  "Mr.Grammar": [1, 2, 3, 4],
+  "Never Study Land": [1, 2, 3, 4],
+  "Phonics Buddy": [1, 2, 3, 4],
+  "Phonics Is Fun": [1, 2, 3],
+  "Read Right L1": [1, 2, 3, 4],
+  "Read Right L2": [1, 2, 3, 4],
+  "Susie's Day": [1, 2, 3, 4],
+  "What Do You Do?": [1, 2, 3],
+  "Where's Coco?": [1, 2, 3, 4],
+};
+function examUrl(textbook, level) {
+  const slug = EXAM_ANSWER_SLUG[textbook];
+  return `/exams/${slug}/${level}.pdf`;
+}
+function answerUrl(textbook, level) {
+  const slug = EXAM_ANSWER_SLUG[textbook];
+  return `/answers/${slug}/${level}.pdf`;
+}
+function downloadFile(url, filename) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 function AudioHome({ onHome }) {
   const [selected, setSelected] = useState(null); // { textbook, level }
   if (!selected) {
@@ -923,6 +1009,115 @@ function AudioLevelPicker({ onPick, onHome }) {
         <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 14 }}>
           * 음원은 교재별로 순차적으로 추가될 예정입니다. 회색 숫자는 아직 음원이 준비되지 않은 권입니다.
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- 답안지 보기 / 시험지 다운로드 (음원 듣기와 동일한 화면 구성) ----------
+function TextbookLevelPicker({ title, subtitle, onHome, onPick }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", padding: "30px 20px" }}>
+        <button onClick={onHome} className="print-hide" style={secondaryBtn}>← 처음으로</button>
+        <div style={{ fontSize: 20, fontWeight: 800, margin: "18px 0 14px", color: "#111827" }}>{title}</div>
+        <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", padding: "6px 20px" }}>
+          {TEXTBOOKS.map((t) => {
+            const levels = TEXTBOOK_LEVELS[t] || [];
+            return (
+              <div key={t} className="audio-book-row" style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
+                <div className="audio-book-label" style={{ minWidth: 170, fontWeight: 700, color: "#111827", fontSize: 14 }}>{t}</div>
+                <div className="audio-level-boxes" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {levels.map((lv) => {
+                    const has = !!(EXAM_ANSWER_LEVELS[t] && EXAM_ANSWER_LEVELS[t].includes(lv));
+                    return (
+                      <button
+                        key={lv}
+                        disabled={!has}
+                        onClick={() => has && onPick(t, lv)}
+                        title={has ? `${lv}권 ${subtitle}` : "준비중"}
+                        className="audio-level-box"
+                        style={{
+                          width: 38, height: 38, borderRadius: 8,
+                          border: has ? "1.5px solid #111827" : "1.5px solid #e5e7eb",
+                          background: has ? "#fff" : "#f9fafb",
+                          color: has ? "#111827" : "#d1d5db",
+                          fontWeight: 800, fontSize: 14,
+                          cursor: has ? "pointer" : "not-allowed",
+                        }}
+                      >{lv}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 14 }}>
+          * {subtitle}는 교재별로 순차적으로 추가될 예정입니다. 회색 숫자는 아직 준비되지 않은 권입니다.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnswerHome({ onHome }) {
+  const [viewing, setViewing] = useState(null); // { textbook, level }
+  return (
+    <>
+      <TextbookLevelPicker
+        title="Final Test 답안지 보기"
+        subtitle="답안지"
+        onHome={onHome}
+        onPick={(t, lv) => setViewing({ textbook: t, level: lv })}
+      />
+      {viewing && (
+        <PdfModal
+          title={`${viewing.textbook} ${viewing.level}권 답안지`}
+          url={answerUrl(viewing.textbook, viewing.level)}
+          onClose={() => setViewing(null)}
+        />
+      )}
+    </>
+  );
+}
+
+function ExamHome({ onHome }) {
+  return (
+    <TextbookLevelPicker
+      title="Final Test 시험지 다운로드"
+      subtitle="시험지"
+      onHome={onHome}
+      onPick={(t, lv) => downloadFile(examUrl(t, lv), `${t}_${lv}권_시험지.pdf`)}
+    />
+  );
+}
+
+function PdfModal({ title, url, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.65)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: "#fff", borderRadius: 14, width: "100%", maxWidth: 900, height: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid #e5e7eb" }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{title}</span>
+          <button
+            onClick={onClose}
+            aria-label="닫기"
+            style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb", fontSize: 16, fontWeight: 700, color: "#374151", cursor: "pointer" }}
+          >✕</button>
+        </div>
+        <iframe src={url} title={title} style={{ flex: 1, border: "none", width: "100%" }} />
       </div>
     </div>
   );
