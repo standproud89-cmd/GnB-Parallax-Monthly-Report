@@ -1322,14 +1322,14 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
   }
 
   const rowLabelStyle = {
-    position: "sticky", left: 0, background: "#fecaca", zIndex: 2,
-    padding: "7px 10px", fontSize: 12, fontWeight: 700, color: "#7f1d1d",
-    borderRight: "2px solid #fff", borderBottom: "1px solid #fca5a5",
+    position: "sticky", left: 0, background: "#FBDCCC", zIndex: 2,
+    padding: "8px 10px", fontSize: 14, fontWeight: 700, color: "#712B13",
+    borderRight: "2px solid #fff", borderBottom: "1px solid #F0997B",
     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left",
   };
   const maxColStyle = {
     position: "sticky", left: LABEL_W, background: "#e5e7eb", zIndex: 2,
-    padding: "7px 6px", fontSize: 12, fontWeight: 800, color: "#374151",
+    padding: "8px 6px", fontSize: 14, fontWeight: 800, color: "#374151",
     borderRight: "2px solid #cbd5e1", borderBottom: "1px solid #d1d5db",
     textAlign: "center",
   };
@@ -1342,8 +1342,8 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
     textAlign: "center",
   });
   const cellInput = {
-    width: "100%", minWidth: 0, maxWidth: 56, textAlign: "center", padding: "5px 2px", fontSize: 12,
-    border: "1px solid #fbbf24", borderRadius: 4, background: "#fffbeb", boxSizing: "border-box",
+    width: "100%", minWidth: 0, maxWidth: 56, height: 36, textAlign: "center", padding: "5px 2px", fontSize: 15, fontWeight: 600,
+    border: "1px solid #F0997B", borderRadius: 6, background: "#FAECE7", color: "#712B13", boxSizing: "border-box",
   };
 
   // 섹션 전체 헤더 행 (Final Test Achievement / Class Performance) - 표 전체 폭을 가로지르는 큰 구분 행
@@ -1369,7 +1369,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
             <td
               key={s.id}
               style={{
-                padding: "6px 3px", textAlign: "center", fontWeight: 800, fontSize: 13, color: theme.labelText,
+                padding: "8px 3px", textAlign: "center", fontWeight: 700, fontSize: 20, color: theme.labelText,
                 background: i % 2 === 0 ? theme.totalCellA : theme.totalCellB,
                 borderRight: i === students.length - 1 ? "none" : `2px solid ${theme.border}`,
               }}
@@ -1384,26 +1384,38 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
 
   // Final Test Achievement (Part I~V) 테마
   const testTheme = {
-    labelText: "#7f1d1d", border: "#fbbf24",
-    totalLabel: "#fca5a5", totalMax: "#f1f5f9", totalCellA: "#fde68a", totalCellB: "#fcd34d",
+    labelText: "#712B13", border: "#F0997B",
+    totalLabel: "#F5C4AC", totalMax: "#f1f5f9", totalCellA: "#FBDCCC", totalCellB: "#F5C4AC",
   };
   const testTotalMax = partDefs.reduce((a, p) => a + Number(p.max || 0), 0);
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "30px 20px" }}>
-      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", overflow: "hidden" }}>
-        <div style={{ padding: "20px 26px", borderBottom: "1px solid #f1f5f9" }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", marginBottom: 10 }}>학생 성적 입력표</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 22px", fontSize: 13, color: "#374151" }}>
-            <span><b>담임교사</b> {form.teacher}</span>
-            <span><b>Class명</b> {form.className}</span>
-            <span><b>수업일자</b> {form.dateStart} ~ {form.dateEnd}</span>
-            <span><b>교재명</b> {textbookLabel(form)}</span>
-            <span><b>학원명</b> {form.academyName}</span>
-            {form.phone && <span><b>전화</b> {form.phone}</span>}
-          </div>
-        </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", marginBottom: 16 }}>학생 성적 입력표</div>
 
+      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", padding: "20px 24px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          <span style={{ fontSize: 18 }}>ℹ️</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>기본 정보</span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
+          {[
+            ["담임교사", form.teacher, 1],
+            ["Class명", form.className, 1],
+            ["수업일자", `${form.dateStart} ~ ${form.dateEnd}`, 1.6],
+            ["교재명", textbookLabel(form), 1.4],
+            ["학원명", form.academyName, 1],
+            ...(form.phone ? [["전화", form.phone, 1]] : []),
+          ].map(([label, value, flex], i, arr) => (
+            <div key={label} style={{ flex, minWidth: 120, padding: "10px 14px", borderRight: i === arr.length - 1 ? "none" : "1px solid #e5e7eb" }}>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{value || "-"}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", overflow: "hidden" }}>
         <div style={{ padding: "14px 26px", background: "#eff6ff", borderBottom: "1px solid #dbeafe", fontSize: 12, color: "#1e3a8a", lineHeight: 1.7 }}>
           <div>* 입력값은 중간 저장이 되지 않으니, 새로고침에 유의하세요.</div>
           <div>* '엑셀 템플릿 다운로드'는 화면에 입력된 내용과 상관없이 항상 빈 템플릿으로 다운로드됩니다. (현재 화면 입력을 그대로 저장하려는 용도가 아닙니다)</div>
@@ -1452,17 +1464,17 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
             </colgroup>
             <thead>
               <tr>
-                <th style={{ ...rowLabelStyle, width: LABEL_W, minWidth: LABEL_W, maxWidth: LABEL_W, background: "#111827", color: "#fff", zIndex: 3 }}>학생명</th>
-                <th style={{ ...maxColStyle, width: MAXCOL_W, minWidth: MAXCOL_W, maxWidth: MAXCOL_W, background: "#111827", color: "#fff", zIndex: 3 }}>만점</th>
+                <th style={{ ...rowLabelStyle, width: LABEL_W, minWidth: LABEL_W, maxWidth: LABEL_W, background: "#111827", color: "#fff", zIndex: 3, fontSize: 14 }}>학생명</th>
+                <th style={{ ...maxColStyle, width: MAXCOL_W, minWidth: MAXCOL_W, maxWidth: MAXCOL_W, background: "#111827", color: "#fff", zIndex: 3, fontSize: 14 }}>만점</th>
                 {students.map((s, i) => (
-                  <th key={s.id} className="snap-col" style={{ width: STUDENT_COL_W, minWidth: STUDENT_COL_W, maxWidth: STUDENT_COL_W, padding: "4px 3px", background: "#111827", borderRight: i === students.length - 1 ? "none" : "2px solid #374151" }}>
+                  <th key={s.id} className="snap-col" style={{ width: STUDENT_COL_W, minWidth: STUDENT_COL_W, maxWidth: STUDENT_COL_W, padding: "6px 4px", background: "#111827", borderRight: i === students.length - 1 ? "none" : "2px solid #374151" }}>
                     <input
                       value={s.name}
                       onChange={(e) => updateStudentField(i, "name", e.target.value)}
                       onKeyDown={(e) => handleGridKeyDown(e, "name", i)}
                       data-field="name" data-col={i}
                       placeholder="학생명 입력"
-                      style={{ width: "100%", minWidth: 0, boxSizing: "border-box", textAlign: "center", padding: "4px 2px", fontSize: 12, border: "1px solid #4b5563", borderRadius: 4, color: "#111827", background: s.name ? "#fff" : "#f3f4f6" }}
+                      style={{ width: "100%", minWidth: 0, height: 34, boxSizing: "border-box", textAlign: "center", padding: "4px 2px", fontSize: 13, fontWeight: 600, border: "1px solid #4b5563", borderRadius: 6, color: "#111827", background: s.name ? "#fff" : "#374151" }}
                     />
                   </th>
                 ))}
@@ -1495,23 +1507,23 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
               <BigHeaderRow label="Class Performance" bg="#1f2937" />
 
               <SectionRows title="Participation (참여도)" defs={PARTICIPATION_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
-                theme={{ label: "#bfdbfe", labelText: "#1e3a8a", group: "#93c5fd", dataA: "#eff6ff", dataB: "#dbeafe", border: "#93c5fd", inputBorder: "#60a5fa", inputBg: "#eff6ff", totalLabel: "#93c5fd", totalMax: "#f1f5f9", totalCellA: "#bfdbfe", totalCellB: "#93c5fd" }}
+                theme={{ label: "#CBEEE0", labelText: "#085041", group: "#9FE0C8", dataA: "#F3FBF8", dataB: "#E1F5EE", border: "#5DCAA5", inputBorder: "#5DCAA5", inputBg: "#E1F5EE", totalLabel: "#9FE0C8", totalMax: "#f1f5f9", totalCellA: "#CBEEE0", totalCellB: "#9FE0C8" }}
                 totalLabel="총점 (참여도)" totalMax={30}
               />
               <SectionRows title="Behavior (태도)" defs={BEHAVIOR_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
-                theme={{ label: "#ddd6fe", labelText: "#4c1d95", group: "#c4b5fd", dataA: "#f5f3ff", dataB: "#ede9fe", border: "#c4b5fd", inputBorder: "#a78bfa", inputBg: "#f5f3ff", totalLabel: "#c4b5fd", totalMax: "#f1f5f9", totalCellA: "#ddd6fe", totalCellB: "#c4b5fd" }}
+                theme={{ label: "#DDDAFC", labelText: "#26215C", group: "#C3BDF5", dataA: "#F7F6FE", dataB: "#EEEDFE", border: "#AFA9EC", inputBorder: "#AFA9EC", inputBg: "#EEEDFE", totalLabel: "#C3BDF5", totalMax: "#f1f5f9", totalCellA: "#DDDAFC", totalCellB: "#C3BDF5" }}
                 totalLabel="총점 (태도)" totalMax={30}
               />
               <SectionRows title="Homework (숙제)" defs={HOMEWORK_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
-                theme={{ label: "#fed7aa", labelText: "#7c2d12", group: "#fdba74", dataA: "#fff7ed", dataB: "#ffedd5", border: "#fdba74", inputBorder: "#fb923c", inputBg: "#fff7ed", totalLabel: "#fdba74", totalMax: "#f1f5f9", totalCellA: "#fed7aa", totalCellB: "#fdba74" }}
+                theme={{ label: "#FBE4BC", labelText: "#633806", group: "#F5CD86", dataA: "#FEFAF1", dataB: "#FAEEDA", border: "#EF9F27", inputBorder: "#EF9F27", inputBg: "#FAEEDA", totalLabel: "#F5CD86", totalMax: "#f1f5f9", totalCellA: "#FBE4BC", totalCellB: "#F5CD86" }}
                 totalLabel="총점 (숙제)" totalMax={30}
               />
 
               <tr>
-                <td style={{ ...rowLabelStyle, background: "#fca5a5" }}>Teacher's Comments</td>
+                <td style={{ ...rowLabelStyle, background: "#F7C7D8", color: "#7A1F3D" }}>Teacher's Comments</td>
                 <td style={{ ...maxColStyle, background: "#f1f5f9" }}>-</td>
                 {students.map((s, i) => (
-                  <td key={s.id} style={{ padding: 3, background: i % 2 === 0 ? "#fef9c3" : "#fef3c7", borderRight: i === students.length - 1 ? "none" : "2px solid #fbbf24" }}>
+                  <td key={s.id} style={{ padding: 4, background: i % 2 === 0 ? "#FDF4F7" : "#FBEAF0", borderRight: i === students.length - 1 ? "none" : "2px solid #ED93B1" }}>
                     <textarea
                       value={s.comment}
                       onChange={(e) => updateStudentField(i, "comment", e.target.value.slice(0, COMMENT_MAX_LEN))}
@@ -1520,9 +1532,9 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
                       placeholder="코멘트 입력"
                       rows={9}
                       maxLength={COMMENT_MAX_LEN}
-                      style={{ width: COMMENT_ROW_W, maxWidth: COMMENT_ROW_W, boxSizing: "border-box", padding: "6px 6px", fontSize: 11, lineHeight: 1.4, border: "1px solid #fbbf24", borderRadius: 4, background: "#fffbeb", resize: "vertical", fontFamily: "inherit" }}
+                      style={{ width: "100%", minWidth: 0, boxSizing: "border-box", padding: "8px 8px", fontSize: 13, lineHeight: 1.5, border: "1px solid #ED93B1", borderRadius: 8, background: "#fff", color: "#111827", resize: "vertical", fontFamily: "inherit" }}
                     />
-                    <div style={{ width: COMMENT_ROW_W, textAlign: "right", fontSize: 9, color: (s.comment || "").length >= COMMENT_MAX_LEN ? "#dc2626" : "#9ca3af", marginTop: 2 }}>
+                    <div style={{ textAlign: "right", fontSize: 10, color: (s.comment || "").length >= COMMENT_MAX_LEN ? "#dc2626" : "#9ca3af", marginTop: 3 }}>
                       {(s.comment || "").length} / {COMMENT_MAX_LEN}자
                     </div>
                   </td>
@@ -1544,7 +1556,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
 function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle, theme, totalLabel, totalMax, onNav }) {
   const rowLabelStyle = {
     position: "sticky", left: 0, background: theme.label, zIndex: 2,
-    padding: "7px 10px", fontSize: 12, fontWeight: 700, color: theme.labelText,
+    padding: "8px 10px", fontSize: 14, fontWeight: 700, color: theme.labelText,
     borderRight: "2px solid #fff", borderBottom: `1px solid ${theme.border}`,
     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left",
   };
@@ -1560,8 +1572,8 @@ function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle
     borderRight: isLast ? "none" : `2px solid ${theme.border}`,
   });
   const cellInput = {
-    width: "100%", minWidth: 0, maxWidth: 56, textAlign: "center", padding: "5px 2px", fontSize: 12,
-    border: `1px solid ${theme.inputBorder}`, borderRadius: 4, background: theme.inputBg, boxSizing: "border-box",
+    width: "100%", minWidth: 0, maxWidth: 56, height: 36, textAlign: "center", padding: "5px 2px", fontSize: 15, fontWeight: 600,
+    border: `1px solid ${theme.inputBorder}`, borderRadius: 6, background: theme.inputBg, color: theme.labelText, boxSizing: "border-box",
   };
 
   return (
@@ -1599,7 +1611,7 @@ function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle
             <td
               key={s.id}
               style={{
-                padding: "6px 3px", textAlign: "center", fontWeight: 800, fontSize: 13, color: theme.labelText,
+                padding: "8px 3px", textAlign: "center", fontWeight: 700, fontSize: 20, color: theme.labelText,
                 background: i % 2 === 0 ? theme.totalCellA : theme.totalCellB,
                 borderRight: i === students.length - 1 ? "none" : `2px solid ${theme.border}`,
               }}
