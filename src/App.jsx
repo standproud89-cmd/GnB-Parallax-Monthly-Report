@@ -503,7 +503,7 @@ function fillCardHeightForCapture(cardEl, targetHeightPx) {
 
 async function downloadReportAsPdf(wrapperEl, filename) {
   const cardEl = wrapperEl.querySelector(".report-card") || wrapperEl;
-  const revert = fillCardHeightForCapture(cardEl, 1047);
+  const revert = fillCardHeightForCapture(cardEl, 1028);
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const canvas = await html2canvas(cardEl, {
     scale: 2,
@@ -2133,7 +2133,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
         wrap.classList.add("pdf-capture-mode");
         // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        const revert = fillCardHeightForCapture(el, 1047);
+        const revert = fillCardHeightForCapture(el, 1028);
         // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         // eslint-disable-next-line no-await-in-loop
