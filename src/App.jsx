@@ -1444,7 +1444,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
         )}
 
         <div ref={tableWrapRef} className="step2-table-scroll" style={{ overflowX: "auto", padding: "18px 26px" }}>
-          <table style={{ borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed", width: LABEL_W + MAXCOL_W + STUDENT_COL_W * students.length }}>
+          <table style={{ borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed", width: "100%", minWidth: LABEL_W + MAXCOL_W + STUDENT_COL_W * students.length }}>
             <colgroup>
               <col style={{ width: LABEL_W }} />
               <col style={{ width: MAXCOL_W }} />

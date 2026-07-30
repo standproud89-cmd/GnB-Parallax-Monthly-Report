@@ -29,11 +29,16 @@
           box-shadow: none !important;
           border-radius: 0 !important;
           border: 1px solid #e5e7eb !important;
+          display: flex !important;
+          flex-direction: column !important;
+          height: 277mm !important;
+          justify-content: space-between !important;
+          overflow: hidden !important;
         }
-        .report-header { padding: 6px 14px 3px !important; }
-        .report-section { margin: 6px 14px 0 !important; }
+        .report-header { padding: 6px 14px 3px !important; flex: 0 0 auto !important; }
+        .report-section { margin: 6px 14px 0 !important; flex: 0 0 auto !important; }
         .report-section:last-child { margin-bottom: 6px !important; }
-        .info-row { margin: 4px 24px 0 !important; }
+        .info-row { margin: 4px 24px 0 !important; flex: 0 0 auto !important; }
         .info-row > div { padding: 3px 12px !important; }
         .info-row > div > span:first-child { font-size: 8.5px !important; }
         .info-row > div > span:last-child { font-size: 11.5px !important; }
@@ -71,15 +76,20 @@
       /* PDF 다운로드용 캡처 모드 - @media print과 동일한 수치를 고정 픽셀 폭으로 재현 (A4 794x1123px 기준, 안전 영역 약 730x1050px) */
       .pdf-capture-mode .report-card {
         width: 733px !important;
+        height: 1047px !important;
         margin: 0 auto !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         border: 1px solid #e5e7eb !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        overflow: hidden !important;
       }
-      .pdf-capture-mode .report-header { padding: 6px 14px 3px !important; }
-      .pdf-capture-mode .report-section { margin: 6px 14px 0 !important; }
+      .pdf-capture-mode .report-header { padding: 6px 14px 3px !important; flex: 0 0 auto !important; }
+      .pdf-capture-mode .report-section { margin: 6px 14px 0 !important; flex: 0 0 auto !important; }
       .pdf-capture-mode .report-section:last-child { margin-bottom: 6px !important; }
-      .pdf-capture-mode .info-row { margin: 4px 24px 0 !important; }
+      .pdf-capture-mode .info-row { margin: 4px 24px 0 !important; flex: 0 0 auto !important; }
       .pdf-capture-mode .info-row > div { padding: 3px 12px !important; }
       .pdf-capture-mode .info-row > div > span:first-child { font-size: 8.5px !important; }
       .pdf-capture-mode .info-row > div > span:last-child { font-size: 11.5px !important; }
