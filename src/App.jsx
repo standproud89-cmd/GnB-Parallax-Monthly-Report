@@ -726,28 +726,13 @@ export default function App() {
 // ---------- 대문 (Final Test 음원 듣기 / 성적표 입력) ----------
 function Landing({ onSelect }) {
   const [hover, setHover] = useState(null);
-  const accent = "#eb574f";
-  const cardBase = {
-    position: "relative", background: "#fff", borderRadius: 24,
-    padding: "48px 32px", textAlign: "center", cursor: "pointer",
-    border: "1px solid #eef0f3", overflow: "hidden",
-    transition: "box-shadow .2s ease, transform .2s ease, border-color .2s ease",
-  };
-  function cardStyle(key) {
-    const active = hover === key;
-    return {
-      ...cardBase,
-      boxShadow: active ? "0 20px 40px rgba(17,24,39,0.12)" : "0 2px 8px rgba(17,24,39,0.05)",
-      transform: active ? "translateY(-4px)" : "translateY(0)",
-      borderColor: active ? accent : "#eef0f3",
-    };
-  }
-  const kicker = { fontSize: 11, fontWeight: 800, letterSpacing: 2, color: accent, textTransform: "uppercase" };
-  const badgeStyle = {
-    width: 64, height: 64, borderRadius: 20, margin: "18px auto 0",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 30, background: "linear-gradient(135deg,#fff1f0,#ffe4e1)",
-  };
+
+  const CARDS = [
+    { key: "audio", icon: "🎧", title: "음원 듣기", desc: "Final Test 음원을 재생합니다", accent: "#D85A30", chipBg: "#FAECE7", badgeText: "#712B13" },
+    { key: "grades", icon: "📝", title: "성적표 입력", desc: "학생 성적을 입력하고 출력합니다", accent: "#0F6E56", chipBg: "#E1F5EE", badgeText: "#085041" },
+    { key: "answers", icon: "📋", title: "답안지 보기", desc: "답안지를 바로 확인합니다", accent: "#534AB7", chipBg: "#EEEDFE", badgeText: "#26215C" },
+    { key: "exams", icon: "📄", title: "시험지 다운로드", desc: "시험지 PDF를 다운로드합니다", accent: "#854F0B", chipBg: "#FAEEDA", badgeText: "#633806" },
+  ];
 
   return (
     <div style={{
@@ -756,64 +741,35 @@ function Landing({ onSelect }) {
       display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
     }}>
       <div style={{ maxWidth: 780, width: "100%" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <img src={gplumLogo} alt="Gplum" style={{ height: 52, margin: "0 auto 18px", display: "block" }} />
-          <div style={{ fontSize: 30, fontWeight: 900, color: "#111827", letterSpacing: -0.5 }}>Final Test</div>
-          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6, fontWeight: 600 }}>원하시는 메뉴를 선택해주세요</div>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <img src={gplumLogo} alt="Gplum" style={{ height: 88, margin: "0 auto", display: "block" }} />
         </div>
 
-        <div className="landing-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-          <button
-            onClick={() => onSelect("audio")}
-            style={cardStyle("audio")}
-            onMouseEnter={() => setHover("audio")}
-            onMouseLeave={() => setHover(null)}
-          >
-            <div style={badgeStyle}>🎧</div>
-            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>음원 듣기</div>
-            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>교재별 Final Test 음원을 재생합니다</div>
-            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "audio" ? accent : "#d1d5db" }}>시작하기 →</div>
-          </button>
-
-          <button
-            onClick={() => onSelect("grades")}
-            style={cardStyle("grades")}
-            onMouseEnter={() => setHover("grades")}
-            onMouseLeave={() => setHover(null)}
-          >
-            <div style={badgeStyle}>📝</div>
-            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test (인쇄용)</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>성적표 입력</div>
-            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>학생 성적을 입력하고 성적표를 출력합니다</div>
-            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "grades" ? accent : "#d1d5db" }}>시작하기 →</div>
-          </button>
-
-          <button
-            onClick={() => onSelect("answers")}
-            style={cardStyle("answers")}
-            onMouseEnter={() => setHover("answers")}
-            onMouseLeave={() => setHover(null)}
-          >
-            <div style={badgeStyle}>📋</div>
-            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>답안지 보기</div>
-            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>교재별 Final Test 답안지를 바로 확인합니다</div>
-            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "answers" ? accent : "#d1d5db" }}>시작하기 →</div>
-          </button>
-
-          <button
-            onClick={() => onSelect("exams")}
-            style={cardStyle("exams")}
-            onMouseEnter={() => setHover("exams")}
-            onMouseLeave={() => setHover(null)}
-          >
-            <div style={badgeStyle}>📄</div>
-            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>시험지 다운로드</div>
-            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>교재별 Final Test 시험지를 다운로드합니다</div>
-            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "exams" ? accent : "#d1d5db" }}>시작하기 →</div>
-          </button>
+        <div className="landing-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {CARDS.map((c) => (
+            <button
+              key={c.key}
+              onClick={() => onSelect(c.key)}
+              onMouseEnter={() => setHover(c.key)}
+              onMouseLeave={() => setHover(null)}
+              style={{
+                position: "relative", background: "#fff", borderRadius: 18,
+                padding: "26px 20px 20px", textAlign: "left", cursor: "pointer",
+                border: "1px solid #eef0f3", borderLeft: `4px solid ${c.accent}`,
+                boxShadow: hover === c.key ? "0 16px 32px rgba(17,24,39,0.10)" : "0 2px 8px rgba(17,24,39,0.05)",
+                transform: hover === c.key ? "translateY(-3px)" : "translateY(0)",
+                transition: "box-shadow .2s ease, transform .2s ease",
+              }}
+            >
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: c.chipBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 14 }}>
+                {c.icon}
+              </div>
+              <span style={{ display: "inline-block", background: c.chipBg, color: c.badgeText, fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 6, marginBottom: 9 }}>FINAL TEST</span>
+              <div style={{ fontSize: 19, fontWeight: 800, color: "#111827" }}>{c.title}</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", margin: "5px 0 14px" }}>{c.desc}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: c.accent }}>시작하기 →</div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -1804,7 +1760,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
           <span style={{ fontSize: 18 }}>ℹ️</span>
           <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>기본 정보</span>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
+        <div className="step2-info-grid" style={{ display: "flex", flexWrap: "wrap", border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
           {[
             ["담임교사", form.teacher, 1],
             ["Class명", form.className, 1],
@@ -1813,7 +1769,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
             ["학원명", form.academyName, 1],
             ...(form.phone ? [["전화", form.phone, 1]] : []),
           ].map(([label, value, flex], i, arr) => (
-            <div key={label} style={{ flex, minWidth: 120, padding: "10px 14px", borderRight: i === arr.length - 1 ? "none" : "1px solid #e5e7eb" }}>
+            <div key={label} className="step2-info-cell" style={{ flex, minWidth: 120, padding: "10px 14px", borderRight: i === arr.length - 1 ? "none" : "1px solid #e5e7eb" }}>
               <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 3 }}>{label}</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{value || "-"}</div>
             </div>
