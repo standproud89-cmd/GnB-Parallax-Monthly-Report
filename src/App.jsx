@@ -486,17 +486,25 @@ async function parseFullExcelForEdit(file, onSuccess, onError) {
 // html2canvas가 flex justify-content:space-between을 안정적으로 반영하지 못하는 경우가 있어,
 // 캡처 직전에 실제 남는 여백을 JS로 계산해서 각 섹션 사이 margin-top으로 직접 나눠 넣는다.
 function fillCardHeightForCapture(cardEl, targetHeightPx) {
+  const BOTTOM_PADDING = 20; // 마지막 요소(footer) 아래에 항상 확보할 최소 여백
   const children = Array.from(cardEl.children);
   children.forEach((c) => c.style.removeProperty("margin-top"));
   cardEl.style.removeProperty("height");
+  cardEl.style.removeProperty("justify-content");
+  cardEl.style.removeProperty("padding-bottom");
   // 강제 리플로우 후 실측
   // eslint-disable-next-line no-unused-expressions
   cardEl.offsetHeight;
   const naturalTotal = children.reduce((sum, c) => sum + c.getBoundingClientRect().height, 0);
-  // 목표 높이가 실제 콘텐츠보다 작으면 overflow:hidden에 잘려나가므로, 절대 콘텐츠보다 작아지지 않게 보정
-  const effectiveTarget = Math.max(targetHeightPx, naturalTotal + 4);
+  // 목표 높이가 실제 콘텐츠보다 작으면 잘려나가므로, 절대 콘텐츠+하단여백보다 작아지지 않게 보정
+  const effectiveTarget = Math.max(targetHeightPx, naturalTotal + BOTTOM_PADDING + 8);
   cardEl.style.setProperty("height", `${effectiveTarget}px`, "important");
-  const leftover = effectiveTarget - naturalTotal;
+  // CSS의 justify-content:space-between이 남아있으면 마지막 요소를 강제로 바닥에 붙여버려서
+  // 아래에서 계산한 margin-top과 충돌한다 → flex-start로 고정해서 margin-top만으로 간격을 제어
+  cardEl.style.setProperty("justify-content", "flex-start", "important");
+  // padding-bottom은 마지막 자식(margin-top 대상이 아님) 뒤에도 실제 여백이 남도록 보장
+  cardEl.style.setProperty("padding-bottom", `${BOTTOM_PADDING}px`, "important");
+  const leftover = effectiveTarget - naturalTotal - BOTTOM_PADDING;
   const gapCount = children.length - 1;
   const gapEach = gapCount > 0 ? leftover / gapCount : 0;
   children.forEach((c, i) => {
@@ -505,6 +513,8 @@ function fillCardHeightForCapture(cardEl, targetHeightPx) {
   return () => {
     children.forEach((c) => c.style.removeProperty("margin-top"));
     cardEl.style.removeProperty("height");
+    cardEl.style.removeProperty("justify-content");
+    cardEl.style.removeProperty("padding-bottom");
   };
 }
 
