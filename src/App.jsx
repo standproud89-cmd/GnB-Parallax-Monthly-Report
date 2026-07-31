@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import ExcelJS from "exceljs";
-import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import JSZip from "jszip";
 import parallaxLogo from "./assets/parallax-logo.png";
 import gplumLogo from "./assets/gplum-logo.png";
 import {
@@ -141,7 +141,7 @@ function textbookLabel(form) {
   return form.level ? `${form.textbook} ${form.level}권` : form.textbook;
 }
 // PDF 파일명: 개별=학생명_교사명_반명_수업일자_교재명_학원명 / 전체=교사명_반명_수업일자_교재명_학원명 (학생명 칸 없음)
-function buildPdfFilename(form, studentLabel) {
+function buildReportFilename(form, studentLabel, ext) {
   const teacher = filenameSafe(form.teacher) || "교사명";
   const className = filenameSafe(form.className) || "반명";
   const period = form.dateStart && form.dateEnd ? `${form.dateStart}~${form.dateEnd}` : "수업일자";
@@ -150,7 +150,7 @@ function buildPdfFilename(form, studentLabel) {
   const parts = [];
   if (studentLabel) parts.push(filenameSafe(studentLabel) || "학생명");
   parts.push(teacher, className, period, textbook, academyName);
-  return `${parts.join("_")}.pdf`;
+  return `${parts.join("_")}.${ext}`;
 }
 
 function filenameSafe(s) {
@@ -482,7 +482,7 @@ async function parseFullExcelForEdit(file, onSuccess, onError) {
   }
 }
 
-// 최종 성적표를 A4 한 장 PDF로 다운로드 (html2canvas로 캡처 후 jsPDF로 저장 - 브라우저 인쇄창을 거치지 않음)
+// 최종 성적표를 이미지(PNG)로 다운로드 (html2canvas로 캡처, 브라우저 인쇄창을 거치지 않음)
 // html2canvas가 flex justify-content:space-between을 안정적으로 반영하지 못하는 경우가 있어,
 // 캡처 직전에 실제 남는 여백을 JS로 계산해서 각 섹션 사이 margin-top으로 직접 나눠 넣는다.
 function fillCardHeightForCapture(cardEl, targetHeightPx) {
@@ -508,7 +508,7 @@ function fillCardHeightForCapture(cardEl, targetHeightPx) {
   };
 }
 
-async function downloadReportAsPdf(wrapperEl, filename) {
+async function downloadReportAsImage(wrapperEl, filename) {
   const cardEl = wrapperEl.querySelector(".report-card") || wrapperEl;
   const revert = fillCardHeightForCapture(cardEl, 1010);
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -518,13 +518,20 @@ async function downloadReportAsPdf(wrapperEl, filename) {
     useCORS: true,
   });
   revert();
-  const imgData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const marginMm = 10;
-  const contentWidthMm = 210 - marginMm * 2;
-  const contentHeightMm = (canvas.height * contentWidthMm) / canvas.width;
-  pdf.addImage(imgData, "PNG", marginMm, marginMm, contentWidthMm, Math.min(contentHeightMm, 297 - marginMm * 2));
-  pdf.save(filename);
+  downloadFile(canvas.toDataURL("image/png"), filename);
+}
+
+// 캡처만 하고 canvas를 그대로 반환 (전체 다운로드에서 재사용)
+async function captureReportCardCanvas(cardEl) {
+  const revert = fillCardHeightForCapture(cardEl, 1010);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const canvas = await html2canvas(cardEl, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+  });
+  revert();
+  return canvas;
 }
 
 const GRADE_COLORS = {
@@ -740,9 +747,9 @@ function Landing({ onSelect }) {
       background: "radial-gradient(circle at 50% -10%, #fff1f0 0%, #f3f4f6 55%)",
       display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
     }}>
-      <div style={{ maxWidth: 780, width: "100%" }}>
+      <div className="landing-container" style={{ maxWidth: 780, width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <img src={gplumLogo} alt="Gplum" style={{ height: 88, margin: "0 auto", display: "block" }} />
+          <img src={gplumLogo} alt="Gplum" className="landing-logo" style={{ height: 88, margin: "0 auto", display: "block" }} />
         </div>
 
         <div className="landing-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -752,6 +759,7 @@ function Landing({ onSelect }) {
               onClick={() => onSelect(c.key)}
               onMouseEnter={() => setHover(c.key)}
               onMouseLeave={() => setHover(null)}
+              className="landing-card"
               style={{
                 position: "relative", background: "#fff", borderRadius: 18,
                 padding: "26px 20px 20px", textAlign: "left", cursor: "pointer",
@@ -761,13 +769,13 @@ function Landing({ onSelect }) {
                 transition: "box-shadow .2s ease, transform .2s ease",
               }}
             >
-              <div style={{ width: 56, height: 56, borderRadius: 16, background: c.chipBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 14 }}>
+              <div className="landing-card-icon" style={{ width: 56, height: 56, borderRadius: 16, background: c.chipBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 14 }}>
                 {c.icon}
               </div>
-              <span style={{ display: "inline-block", background: c.chipBg, color: c.badgeText, fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 6, marginBottom: 9 }}>FINAL TEST</span>
-              <div style={{ fontSize: 19, fontWeight: 800, color: "#111827" }}>{c.title}</div>
-              <div style={{ fontSize: 12, color: "#9ca3af", margin: "5px 0 14px" }}>{c.desc}</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: c.accent }}>시작하기 →</div>
+              <span className="landing-card-badge" style={{ display: "inline-block", background: c.chipBg, color: c.badgeText, fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 6, marginBottom: 9 }}>FINAL TEST</span>
+              <div className="landing-card-title" style={{ fontSize: 19, fontWeight: 800, color: "#111827" }}>{c.title}</div>
+              <div className="landing-card-desc" style={{ fontSize: 12, color: "#9ca3af", margin: "5px 0 14px" }}>{c.desc}</div>
+              <div className="landing-card-cta" style={{ fontSize: 13, fontWeight: 800, color: c.accent }}>시작하기 →</div>
             </button>
           ))}
         </div>
@@ -1764,7 +1772,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
           {[
             ["담임교사", form.teacher, 1],
             ["Class명", form.className, 1],
-            ["수업일자", `${form.dateStart} ~ ${form.dateEnd}`, 1.6],
+            ["수업일자", <>{form.dateStart}<br />~ {form.dateEnd}</>, 1.6],
             ["교재명", textbookLabel(form), 1.4],
             ["학원명", form.academyName, 1],
             ...(form.phone ? [["전화", form.phone, 1]] : []),
@@ -2054,26 +2062,26 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
     };
   }, [printAll]);
 
-  // 개별 PDF 다운로드 (현재 보고 있는 학생 1명)
-  async function handlePdfDownload() {
+  // 개별 이미지 다운로드 (현재 보고 있는 학생 1명)
+  async function handleImageDownload() {
     if (!cardRef.current || pdfBusy) return;
     setPdfBusy(true);
     const el = cardRef.current;
     el.classList.add("pdf-capture-mode");
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const filename = buildPdfFilename(form, student.name || `학생${reportIndex + 1}`);
-      await downloadReportAsPdf(el, filename);
+      const filename = buildReportFilename(form, student.name || `학생${reportIndex + 1}`, "png");
+      await downloadReportAsImage(el, filename);
     } catch (err) {
-      alert("PDF 생성 중 문제가 발생했습니다: " + (err?.message || err));
+      alert("이미지 생성 중 문제가 발생했습니다: " + (err?.message || err));
     } finally {
       el.classList.remove("pdf-capture-mode");
       setPdfBusy(false);
     }
   }
 
-  // 전체 PDF 다운로드 (학생 수만큼 페이지가 있는 PDF 1개)
-  async function handlePdfAllDownload() {
+  // 전체 이미지 다운로드 (학생별 이미지를 zip으로 묶어서 한 번에 다운로드)
+  async function handleImageAllDownload() {
     if (pdfAllBusy) return;
     setPdfAllBusy(true);
     setPdfAllRendering(true);
@@ -2086,33 +2094,28 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
       const cards = Array.from(document.querySelectorAll(".all-reports-container .report-card"));
       if (!cards.length) throw new Error("성적표를 찾을 수 없습니다.");
 
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const marginMm = 10;
-      const contentWidthMm = 210 - marginMm * 2;
-
+      const zip = new JSZip();
       for (let i = 0; i < cards.length; i++) {
         const el = cards[i];
         const wrap = el.parentElement || el; // CSS가 .pdf-capture-mode .report-card (자손 선택자)라서 부모에 클래스를 걸어야 함
         wrap.classList.add("pdf-capture-mode");
         // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        const revert = fillCardHeightForCapture(el, 1010);
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        // eslint-disable-next-line no-await-in-loop
-        const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-        revert();
+        const canvas = await captureReportCardCanvas(el);
         wrap.classList.remove("pdf-capture-mode");
-        const imgData = canvas.toDataURL("image/png");
-        const contentHeightMm = (canvas.height * contentWidthMm) / canvas.width;
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", marginMm, marginMm, contentWidthMm, Math.min(contentHeightMm, 297 - marginMm * 2));
+        const dataUrl = canvas.toDataURL("image/png");
+        const base64 = dataUrl.split(",")[1];
+        const st = students[i];
+        const imgFilename = buildReportFilename(form, st.name || `학생${i + 1}`, "png");
+        zip.file(imgFilename, base64, { base64: true });
       }
 
-      const filename = buildPdfFilename(form, null);
-      pdf.save(filename);
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const zipFilename = buildReportFilename(form, "전체", "zip");
+      downloadFile(zipUrl, zipFilename);
+      URL.revokeObjectURL(zipUrl);
     } catch (err) {
-      alert("전체 PDF 생성 중 문제가 발생했습니다: " + (err?.message || err));
+      alert("전체 이미지 생성 중 문제가 발생했습니다: " + (err?.message || err));
     } finally {
       setPdfAllRendering(false);
       setPdfAllBusy(false);
@@ -2147,8 +2150,8 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
           >›</button>
         </div>
         <div className="step3-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={handlePdfDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "📄 PDF 다운로드 (개별)"}</button>
-          <button onClick={handlePdfAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "📄 PDF 다운로드 (전체)"}</button>
+          <button onClick={handleImageDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "🖼 이미지 다운로드 (개별)"}</button>
+          <button onClick={handleImageAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "🖼 이미지 다운로드 (전체)"}</button>
           <button onClick={() => setPrintAll(true)} style={secondaryBtn}>🖨 전체 인쇄</button>
           <button onClick={() => window.print()} style={primaryBtn}>🖨 인쇄</button>
         </div>

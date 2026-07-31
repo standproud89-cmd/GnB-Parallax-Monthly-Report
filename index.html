@@ -33,9 +33,8 @@
           border: 1px solid #e5e7eb !important;
           display: flex !important;
           flex-direction: column !important;
-          height: 267mm !important;
+          min-height: 267mm !important;
           justify-content: space-between !important;
-          overflow: hidden !important;
         }
         .report-header { padding: 6px 14px 3px !important; flex: 0 0 auto !important; }
         .report-section { margin: 6px 14px 0 !important; flex: 0 0 auto !important; }
@@ -78,7 +77,7 @@
       /* PDF 다운로드용 캡처 모드 - @media print과 동일한 수치를 고정 픽셀 폭으로 재현 (A4 794x1123px 기준, 안전 영역 약 730x1050px) */
       .pdf-capture-mode .report-card {
         width: 718px !important;
-        height: 1010px !important;
+        min-height: 1010px !important;
         margin: 0 auto !important;
         box-shadow: none !important;
         border-radius: 0 !important;
@@ -86,7 +85,6 @@
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
-        overflow: hidden !important;
       }
       .pdf-capture-mode .report-header { padding: 6px 14px 3px !important; flex: 0 0 auto !important; }
       .pdf-capture-mode .report-section { margin: 6px 14px 0 !important; flex: 0 0 auto !important; }
@@ -152,6 +150,17 @@
         /* Step1 기본정보 입력 */
         input[type="date"] { min-width: 0 !important; width: 100% !important; }
 
+        /* Step2 기본 정보 카드 - flex-wrap 대신 grid로 바꿔서 줄바꿈 시에도 칸 구분선이 어긋나지 않게 */
+        .step2-info-grid {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+        }
+        .step2-info-cell {
+          border-right: 1px solid #e5e7eb !important;
+          border-bottom: 1px solid #e5e7eb !important;
+        }
+        .step2-info-cell:nth-child(2n) { border-right: none !important; }
+
         /* Step2 학생 성적 입력표 */
         .step2-toolbar { gap: 10px !important; }
         .step2-hint { display: none !important; } /* 모바일에선 안내 문구 숨겨서 버튼 줄이 안 밀리게 */
@@ -188,6 +197,19 @@
         .step3-actions { flex-wrap: wrap !important; justify-content: flex-end !important; }
         .stepper-btn { width: 38px !important; height: 38px !important; }
         .score-table, .perf-table { font-size: 12px !important; }
+      }
+
+      /* ---- 대문 화면 PC 전용 확대 (641px 이상, 모바일은 그대로 유지) ---- */
+      @media screen and (min-width: 641px) {
+        .landing-container { max-width: 900px !important; }
+        .landing-logo { height: 112px !important; }
+        .landing-grid { gap: 22px !important; }
+        .landing-card { padding: 34px 26px 26px !important; border-left-width: 6px !important; }
+        .landing-card-icon { width: 76px !important; height: 76px !important; border-radius: 20px !important; font-size: 38px !important; margin-bottom: 18px !important; }
+        .landing-card-badge { font-size: 13px !important; padding: 4px 12px !important; border-radius: 8px !important; margin-bottom: 12px !important; }
+        .landing-card-title { font-size: 28px !important; }
+        .landing-card-desc { font-size: 15px !important; margin: 8px 0 18px !important; }
+        .landing-card-cta { font-size: 17px !important; }
       }
     </style>
   </head>
