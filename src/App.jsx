@@ -544,6 +544,70 @@ async function captureReportCardCanvas(cardEl) {
   return canvas;
 }
 
+// 캡처한 이미지를 그대로 인쇄 (이미지 다운로드와 동일한 결과물을 인쇄하기 위해,
+// 실시간 인쇄 레이아웃 대신 이미 검증된 캡처 이미지를 그대로 인쇄용 iframe에 넣는다)
+function printImagesViaIframe(dataUrls) {
+  return new Promise((resolve) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const pagesHtml = dataUrls
+      .map(
+        (url, i) => `
+        <div class="print-page-img"${i < dataUrls.length - 1 ? ' style="page-break-after: always;"' : ""}>
+          <img src="${url}" />
+        </div>`
+      )
+      .join("");
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            @page { size: A4; margin: 10mm; }
+            html, body { margin: 0; padding: 0; }
+            .print-page-img img { display: block; width: 100%; height: auto; }
+          </style>
+        </head>
+        <body>${pagesHtml}</body>
+      </html>
+    `);
+    doc.close();
+
+    function cleanup() {
+      window.removeEventListener("focus", onFocusAfterPrint);
+      clearTimeout(fallbackTimer);
+      setTimeout(() => {
+        if (iframe.parentNode) document.body.removeChild(iframe);
+        resolve();
+      }, 300);
+    }
+    function onFocusAfterPrint() {
+      cleanup();
+    }
+    // focus 이벤트가 안 잡히는 환경(브라우저/OS 차이)을 대비한 안전장치 - 무한정 멈춰있지 않도록
+    let fallbackTimer;
+
+    // 이미지 로딩 및 레이아웃이 끝날 시간을 확보한 뒤 인쇄
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      window.addEventListener("focus", onFocusAfterPrint, { once: true });
+      iframe.contentWindow.print();
+      fallbackTimer = setTimeout(cleanup, 8000);
+    }, 250);
+  });
+}
+
 const GRADE_COLORS = {
   "Perfect": { color: "#16a34a", bg: "#dcfce7" },
   "Excellent": { color: "#0891b2", bg: "#cffafe" },
@@ -2049,28 +2113,62 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfAllBusy, setPdfAllBusy] = useState(false);
   const [pdfAllRendering, setPdfAllRendering] = useState(false);
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printAllBusy, setPrintAllBusy] = useState(false);
   const cardRef = React.useRef(null);
   const student = students[reportIndex];
   const { totalGot, totalPct, radarData } = computeReportData(student, partDefs, totalMax, classAverages);
 
-  useEffect(() => {
-    if (!printAll) return;
-    let raf1, raf2;
-    const delay = 400 + students.length * 40; // 학생 수가 많을수록 그래프 렌더링에 여유를 더 줌
-    const t = setTimeout(() => {
-      raf1 = requestAnimationFrame(() => {
-        raf2 = requestAnimationFrame(() => window.print());
-      });
-    }, delay);
-    const revert = () => setPrintAll(false);
-    window.addEventListener("afterprint", revert, { once: true });
-    return () => {
-      clearTimeout(t);
-      if (raf1) cancelAnimationFrame(raf1);
-      if (raf2) cancelAnimationFrame(raf2);
-      window.removeEventListener("afterprint", revert);
-    };
-  }, [printAll]);
+  // 인쇄 (현재 보고 있는 학생 1명) - 이미지 다운로드와 동일한 캡처 결과를 그대로 인쇄
+  async function handlePrintSingle() {
+    if (!cardRef.current || printBusy) return;
+    setPrintBusy(true);
+    const el = cardRef.current;
+    el.classList.add("pdf-capture-mode");
+    try {
+      const cardEl = el.querySelector(".report-card") || el;
+      const canvas = await captureReportCardCanvas(cardEl);
+      await printImagesViaIframe([canvas.toDataURL("image/png")]);
+    } catch (err) {
+      alert("인쇄 준비 중 문제가 발생했습니다: " + (err?.message || err));
+    } finally {
+      el.classList.remove("pdf-capture-mode");
+      setPrintBusy(false);
+    }
+  }
+
+  // 전체 인쇄 (학생별 캡처 이미지를 페이지별로 이어붙여 인쇄)
+  async function handlePrintAll() {
+    if (printAllBusy) return;
+    setPrintAllBusy(true);
+    setPrintAll(true);
+    try {
+      const delay = 400 + students.length * 40;
+      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const cards = Array.from(document.querySelectorAll(".all-reports-container .report-card"));
+      if (!cards.length) throw new Error("성적표를 찾을 수 없습니다.");
+
+      const dataUrls = [];
+      for (let i = 0; i < cards.length; i++) {
+        const el = cards[i];
+        const wrap = el.parentElement || el;
+        wrap.classList.add("pdf-capture-mode");
+        // eslint-disable-next-line no-await-in-loop
+        const canvas = await captureReportCardCanvas(el);
+        wrap.classList.remove("pdf-capture-mode");
+        dataUrls.push(canvas.toDataURL("image/png"));
+      }
+
+      await printImagesViaIframe(dataUrls);
+    } catch (err) {
+      alert("전체 인쇄 준비 중 문제가 발생했습니다: " + (err?.message || err));
+    } finally {
+      setPrintAll(false);
+      setPrintAllBusy(false);
+    }
+  }
 
   // 개별 이미지 다운로드 (현재 보고 있는 학생 1명)
   async function handleImageDownload() {
@@ -2162,8 +2260,8 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
         <div className="step3-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={handleImageDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "🖼 이미지 다운로드 (개별)"}</button>
           <button onClick={handleImageAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "🖼 이미지 다운로드 (전체)"}</button>
-          <button onClick={() => setPrintAll(true)} style={secondaryBtn}>🖨 전체 인쇄</button>
-          <button onClick={() => window.print()} style={primaryBtn}>🖨 인쇄</button>
+          <button onClick={handlePrintAll} disabled={printAllBusy} style={{ ...secondaryBtn, opacity: printAllBusy ? 0.6 : 1 }}>{printAllBusy ? "준비 중…" : "🖨 전체 인쇄"}</button>
+          <button onClick={handlePrintSingle} disabled={printBusy} style={{ ...primaryBtn, opacity: printBusy ? 0.6 : 1 }}>{printBusy ? "준비 중…" : "🖨 인쇄"}</button>
         </div>
       </div>
 
