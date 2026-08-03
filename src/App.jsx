@@ -532,8 +532,10 @@ async function downloadReportAsImage(wrapperEl, filename) {
 }
 
 // 캡처만 하고 canvas를 그대로 반환 (전체 다운로드/인쇄에서 재사용)
-async function captureReportCardCanvas(cardEl) {
-  const revert = fillCardHeightForCapture(cardEl, 1010);
+// targetHeightPx를 다운로드 기본값(1010)보다 크게 주면, 섹션 사이 간격만 넓어지고
+// (fillCardHeightForCapture가 여백만 늘리므로) 각 섹션 자체의 크기/비율은 그대로 유지된다.
+async function captureReportCardCanvas(cardEl, targetHeightPx = 1010) {
+  const revert = fillCardHeightForCapture(cardEl, targetHeightPx);
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const canvas = await html2canvas(cardEl, {
     scale: 3,
@@ -2133,7 +2135,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
     el.classList.add("pdf-capture-mode");
     try {
       const cardEl = el.querySelector(".report-card") || el;
-      const canvas = await captureReportCardCanvas(cardEl);
+      const canvas = await captureReportCardCanvas(cardEl, 1060);
       await printImagesViaIframe([{ url: canvas.toDataURL("image/png"), widthPx: canvas.width / 3, heightPx: canvas.height / 3 }]);
     } catch (err) {
       alert("인쇄 준비 중 문제가 발생했습니다: " + (err?.message || err));
@@ -2162,7 +2164,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
         const wrap = el.parentElement || el;
         wrap.classList.add("pdf-capture-mode");
         // eslint-disable-next-line no-await-in-loop
-        const canvas = await captureReportCardCanvas(el);
+        const canvas = await captureReportCardCanvas(el, 1060);
         wrap.classList.remove("pdf-capture-mode");
         items.push({ url: canvas.toDataURL("image/png"), widthPx: canvas.width / 3, heightPx: canvas.height / 3 });
       }
@@ -2264,10 +2266,10 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
           >›</button>
         </div>
         <div className="step3-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={handleImageDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "🖼 이미지 다운로드 (개별)"}</button>
-          <button onClick={handleImageAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "🖼 이미지 다운로드 (전체)"}</button>
-          <button onClick={handlePrintAll} disabled={printAllBusy} style={{ ...secondaryBtn, opacity: printAllBusy ? 0.6 : 1 }}>{printAllBusy ? "준비 중…" : "🖨 이미지 인쇄 (전체)"}</button>
-          <button onClick={handlePrintSingle} disabled={printBusy} style={{ ...primaryBtn, opacity: printBusy ? 0.6 : 1 }}>{printBusy ? "준비 중…" : "🖨 이미지 인쇄 (개별)"}</button>
+          <button onClick={handleImageDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "🖼 성적표 다운로드 (개별)"}</button>
+          <button onClick={handleImageAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "🖼 성적표 다운로드 (전체)"}</button>
+          <button onClick={handlePrintAll} disabled={printAllBusy} style={{ ...secondaryBtn, opacity: printAllBusy ? 0.6 : 1 }}>{printAllBusy ? "준비 중…" : "🖨 성적표 인쇄 (전체)"}</button>
+          <button onClick={handlePrintSingle} disabled={printBusy} style={{ ...primaryBtn, opacity: printBusy ? 0.6 : 1 }}>{printBusy ? "준비 중…" : "🖨 성적표 인쇄 (개별)"}</button>
         </div>
       </div>
 
