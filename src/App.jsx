@@ -523,7 +523,7 @@ async function downloadReportAsImage(wrapperEl, filename) {
   const revert = fillCardHeightForCapture(cardEl, 1010);
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const canvas = await html2canvas(cardEl, {
-    scale: 2,
+    scale: 3,
     backgroundColor: "#ffffff",
     useCORS: true,
   });
@@ -531,12 +531,12 @@ async function downloadReportAsImage(wrapperEl, filename) {
   downloadFile(canvas.toDataURL("image/png"), filename);
 }
 
-// 캡처만 하고 canvas를 그대로 반환 (전체 다운로드에서 재사용)
+// 캡처만 하고 canvas를 그대로 반환 (전체 다운로드/인쇄에서 재사용)
 async function captureReportCardCanvas(cardEl) {
   const revert = fillCardHeightForCapture(cardEl, 1010);
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const canvas = await html2canvas(cardEl, {
-    scale: 2,
+    scale: 3,
     backgroundColor: "#ffffff",
     useCORS: true,
   });
@@ -546,7 +546,8 @@ async function captureReportCardCanvas(cardEl) {
 
 // 캡처한 이미지를 그대로 인쇄 (이미지 다운로드와 동일한 결과물을 인쇄하기 위해,
 // 실시간 인쇄 레이아웃 대신 이미 검증된 캡처 이미지를 그대로 인쇄용 iframe에 넣는다)
-function printImagesViaIframe(dataUrls) {
+function printImagesViaIframe(items) {
+  // items: [{ url, widthPx, heightPx }] - widthPx/heightPx는 캡처 시점의 CSS 픽셀 크기(=화면에 보이던 실제 크기)
   return new Promise((resolve) => {
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
@@ -557,13 +558,17 @@ function printImagesViaIframe(dataUrls) {
     iframe.style.border = "0";
     document.body.appendChild(iframe);
 
-    const pagesHtml = dataUrls
-      .map(
-        (url, i) => `
-        <div class="print-page-img"${i < dataUrls.length - 1 ? ' style="page-break-after: always;"' : ""}>
-          <img src="${url}" />
-        </div>`
-      )
+    const pxToMm = (px) => (px / 96) * 25.4;
+
+    const pagesHtml = items
+      .map(({ url, widthPx, heightPx }, i) => {
+        const wMm = pxToMm(widthPx).toFixed(2);
+        const hMm = pxToMm(heightPx).toFixed(2);
+        return `
+        <div class="print-page-img"${i < items.length - 1 ? ' style="page-break-after: always;"' : ""}>
+          <img src="${url}" style="width:${wMm}mm; height:${hMm}mm;" />
+        </div>`;
+      })
       .join("");
 
     const doc = iframe.contentWindow.document;
@@ -574,9 +579,10 @@ function printImagesViaIframe(dataUrls) {
         <head>
           <meta charset="utf-8" />
           <style>
-            @page { size: A4; margin: 10mm 6.5mm; }
+            @page { size: A4; margin: 0; }
             html, body { margin: 0; padding: 0; }
-            .print-page-img img { display: block; width: 98%; height: auto; margin: 0 auto; }
+            .print-page-img { display: flex; justify-content: center; align-items: flex-start; padding-top: 10mm; }
+            .print-page-img img { display: block; }
           </style>
         </head>
         <body>${pagesHtml}</body>
@@ -2128,7 +2134,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
     try {
       const cardEl = el.querySelector(".report-card") || el;
       const canvas = await captureReportCardCanvas(cardEl);
-      await printImagesViaIframe([canvas.toDataURL("image/png")]);
+      await printImagesViaIframe([{ url: canvas.toDataURL("image/png"), widthPx: canvas.width / 3, heightPx: canvas.height / 3 }]);
     } catch (err) {
       alert("인쇄 준비 중 문제가 발생했습니다: " + (err?.message || err));
     } finally {
@@ -2150,7 +2156,7 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
       const cards = Array.from(document.querySelectorAll(".all-reports-container .report-card"));
       if (!cards.length) throw new Error("성적표를 찾을 수 없습니다.");
 
-      const dataUrls = [];
+      const items = [];
       for (let i = 0; i < cards.length; i++) {
         const el = cards[i];
         const wrap = el.parentElement || el;
@@ -2158,10 +2164,10 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
         // eslint-disable-next-line no-await-in-loop
         const canvas = await captureReportCardCanvas(el);
         wrap.classList.remove("pdf-capture-mode");
-        dataUrls.push(canvas.toDataURL("image/png"));
+        items.push({ url: canvas.toDataURL("image/png"), widthPx: canvas.width / 3, heightPx: canvas.height / 3 });
       }
 
-      await printImagesViaIframe(dataUrls);
+      await printImagesViaIframe(items);
     } catch (err) {
       alert("전체 인쇄 준비 중 문제가 발생했습니다: " + (err?.message || err));
     } finally {
@@ -2260,8 +2266,8 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
         <div className="step3-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={handleImageDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "🖼 이미지 다운로드 (개별)"}</button>
           <button onClick={handleImageAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "🖼 이미지 다운로드 (전체)"}</button>
-          <button onClick={handlePrintAll} disabled={printAllBusy} style={{ ...secondaryBtn, opacity: printAllBusy ? 0.6 : 1 }}>{printAllBusy ? "준비 중…" : "🖨 전체 인쇄"}</button>
-          <button onClick={handlePrintSingle} disabled={printBusy} style={{ ...primaryBtn, opacity: printBusy ? 0.6 : 1 }}>{printBusy ? "준비 중…" : "🖨 인쇄"}</button>
+          <button onClick={handlePrintAll} disabled={printAllBusy} style={{ ...secondaryBtn, opacity: printAllBusy ? 0.6 : 1 }}>{printAllBusy ? "준비 중…" : "🖨 이미지 인쇄 (전체)"}</button>
+          <button onClick={handlePrintSingle} disabled={printBusy} style={{ ...primaryBtn, opacity: printBusy ? 0.6 : 1 }}>{printBusy ? "준비 중…" : "🖨 이미지 인쇄 (개별)"}</button>
         </div>
       </div>
 
