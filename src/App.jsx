@@ -576,7 +576,7 @@ function printImagesViaIframe(dataUrls) {
           <style>
             @page { size: A4; margin: 10mm 6.5mm; }
             html, body { margin: 0; padding: 0; }
-            .print-page-img img { display: block; width: 95%; height: auto; margin: 0 auto; }
+            .print-page-img img { display: block; width: 98%; height: auto; margin: 0 auto; }
           </style>
         </head>
         <body>${pagesHtml}</body>
