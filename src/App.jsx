@@ -583,6 +583,7 @@ function printImagesViaIframe(items) {
           <style>
             @page { size: A4; margin: 0; }
             html, body { margin: 0; padding: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
             .print-page-img { display: flex; justify-content: center; align-items: flex-start; padding-top: 10mm; }
             .print-page-img img { display: block; }
           </style>
