@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import ExcelJS from "exceljs";
+import html2canvas from "html2canvas";
+import JSZip from "jszip";
 import parallaxLogo from "./assets/parallax-logo.png";
 import gplumLogo from "./assets/gplum-logo.png";
 import {
@@ -138,21 +140,69 @@ const TEXTBOOKS = Object.keys(TEXTBOOK_LEVELS).sort((a, b) => a.localeCompare(b)
 function textbookLabel(form) {
   return form.level ? `${form.textbook} ${form.level}권` : form.textbook;
 }
+// PDF 파일명: 개별=학생명_교사명_반명_수업일자_교재명_학원명 / 전체=교사명_반명_수업일자_교재명_학원명 (학생명 칸 없음)
+function buildReportFilename(form, studentLabel, ext) {
+  const teacher = filenameSafe(form.teacher) || "교사명";
+  const className = filenameSafe(form.className) || "반명";
+  const period = form.dateStart && form.dateEnd ? `${form.dateStart}~${form.dateEnd}` : "수업일자";
+  const textbook = filenameSafe(form.textbook) || "교재명";
+  const academyName = filenameSafe(form.academyName) || "학원명";
+  const parts = [];
+  if (studentLabel) parts.push(filenameSafe(studentLabel) || "학생명");
+  parts.push(teacher, className, period, textbook, academyName);
+  return `${parts.join("_")}.${ext}`;
+}
+
+function filenameSafe(s) {
+  return (s || "").replace(/[\\/:*?"<>|]/g, "").trim();
+}
+// 엑셀 템플릿 파일명: 교사명_반명_수업일자_교재명_학원명.xlsx
+function buildExcelFilename(form) {
+  const teacher = filenameSafe(form.teacher) || "교사명";
+  const className = filenameSafe(form.className) || "반명";
+  const period = form.dateStart && form.dateEnd ? `${form.dateStart}~${form.dateEnd}` : "수업일자";
+  const textbook = filenameSafe(form.textbook) || "교재명";
+  const academyName = filenameSafe(form.academyName) || "학원명";
+  return `${teacher}_${className}_${period}_${textbook}_${academyName}.xlsx`;
+}
 
 const DEFAULT_MAX = 10; // 참여도/태도/숙제 항목 공통 만점
 function clamp(value, max) {
+  if (value === "" || value === null || value === undefined) return "";
   const n = Number(value);
-  if (Number.isNaN(n)) return 0;
+  if (Number.isNaN(n)) return "";
   return Math.min(Math.max(n, 0), max);
 }
 
 function makeStudent(i, partDefs) {
   const base = { id: i, name: "", comment: "" };
-  (partDefs || []).forEach((p) => (base[p.key] = 0));
-  PARTICIPATION_DEFS.forEach((p) => (base[p.key] = 0));
-  BEHAVIOR_DEFS.forEach((p) => (base[p.key] = 0));
-  HOMEWORK_DEFS.forEach((p) => (base[p.key] = 0));
+  (partDefs || []).forEach((p) => (base[p.key] = ""));
+  PARTICIPATION_DEFS.forEach((p) => (base[p.key] = ""));
+  BEHAVIOR_DEFS.forEach((p) => (base[p.key] = ""));
+  HOMEWORK_DEFS.forEach((p) => (base[p.key] = ""));
   return base;
+}
+
+function isStudentRegistered(student, partDefs) {
+  if (student.name && student.name.trim() !== "") return true;
+  const allKeys = [
+    ...(partDefs || []).map((p) => p.key),
+    ...PARTICIPATION_DEFS.map((d) => d.key),
+    ...BEHAVIOR_DEFS.map((d) => d.key),
+    ...HOMEWORK_DEFS.map((d) => d.key),
+  ];
+  return allKeys.some((k) => Number(student[k]) > 0);
+}
+
+// 이름이 입력된 학생인데 성적 칸 일부가 아직 "입력"(빈 값) 상태로 남아있는지 확인
+function findIncompleteStudents(students, partDefs) {
+  const allKeys = [
+    ...(partDefs || []).map((p) => p.key),
+    ...PARTICIPATION_DEFS.map((d) => d.key),
+    ...BEHAVIOR_DEFS.map((d) => d.key),
+    ...HOMEWORK_DEFS.map((d) => d.key),
+  ];
+  return students.filter((s) => s.name && s.name.trim() !== "" && allKeys.some((k) => s[k] === "" || s[k] === null || s[k] === undefined));
 }
 
 // 화면의 입력표와 동일한 행 구성 (라벨 / 만점 / 학생1 / 학생2 ...) - 선택된 교재의 partDefs 기준
@@ -175,7 +225,8 @@ function buildGridFields(partDefs) {
   ];
 }
 const SECTION_BREAK_ROWS = ["Participation (참여도)", "Behavior (태도)", "Homework (숙제)"];
-const COMMENT_ROW_LABEL = "Teacher Comments";
+const COMMENT_ROW_LABEL = "Teacher's Comments";
+const COMMENT_ROW_LABEL_LEGACY = "Teacher Comments"; // 예전 템플릿(아포스트로피 없음) 호환용
 const COMMENT_MAX_LEN = 500; // 최종 성적표 인쇄 시 코멘트 칸(고정 높이 34mm)에 맞춘 상한
 
 const XLS_COLORS = {
@@ -195,7 +246,7 @@ function xlsFill(argb) {
 }
 
 // 학생 데이터 배열 -> 화면 표와 동일한 구조 + 색상의 엑셀 파일로 다운로드 (템플릿 다운로드 / 결과 다운로드 겸용)
-async function exportStudentsToExcel(form, students, partDefs, filenameSuffix = "") {
+async function exportStudentsToExcel(form, students, partDefs) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("성적입력");
 
@@ -262,7 +313,7 @@ async function exportStudentsToExcel(form, students, partDefs, filenameSuffix = 
     const cell = commentRow.getCell(3 + i);
     cell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
     if (!s.comment) {
-      cell.value = `티쳐스 코멘트 (업로드시 ${COMMENT_MAX_LEN}자 제한)`;
+      cell.value = `(업로드시 ${COMMENT_MAX_LEN}자 제한)`;
       cell.font = { italic: true, color: { argb: "FF9CA3AF" } };
     }
     cell.dataValidation = {
@@ -270,7 +321,7 @@ async function exportStudentsToExcel(form, students, partDefs, filenameSuffix = 
       operator: "lessThanOrEqual",
       formulae: [COMMENT_MAX_LEN],
       showErrorMessage: true,
-      errorStyle: "error",
+      errorStyle: "stop",
       errorTitle: "글자수 초과",
       error: `Teacher's Comments는 최대 ${COMMENT_MAX_LEN}자까지 입력할 수 있습니다.`,
     };
@@ -283,17 +334,26 @@ async function exportStudentsToExcel(form, students, partDefs, filenameSuffix = 
   const wsInfo = wb.addWorksheet("기본정보");
   wsInfo.columns = [{ header: "항목", key: "항목", width: 14 }, { header: "값", key: "값", width: 40 }];
   wsInfo.getRow(1).font = { bold: true };
-  wsInfo.addRow({ 항목: "담임교사", 값: form.teacher });
-  wsInfo.addRow({ 항목: "Class명", 값: form.className });
-  wsInfo.addRow({ 항목: "수업일자", 값: `${form.dateStart} ~ ${form.dateEnd}` });
-  wsInfo.addRow({ 항목: "교재명", 값: textbookLabel(form) });
-  wsInfo.addRow({ 항목: "학원명", 값: form.academyName });
-  wsInfo.addRow({ 항목: "전화번호", 값: form.phone });
+  const teacherRow = wsInfo.addRow({ 항목: "담임교사", 값: form.teacher });
+  const classRow = wsInfo.addRow({ 항목: "Class명", 값: form.className });
+  const periodRow = wsInfo.addRow({ 항목: "수업일자", 값: `${form.dateStart} ~ ${form.dateEnd}` });
+  const textbookRow = wsInfo.addRow({ 항목: "교재명", 값: textbookLabel(form) });
+  const academyRow = wsInfo.addRow({ 항목: "학원명", 값: form.academyName });
+  const phoneRow = wsInfo.addRow({ 항목: "전화번호", 값: form.phone });
+
+  // 교재명(과 그 안에 포함된 권/레벨)은 최초 생성 시의 영역 구성과 반드시 일치해야 하므로 수정 못 하게 잠금.
+  // 나머지 기본정보 항목은 자유롭게 수정 가능하도록 잠금 해제.
+  [teacherRow, classRow, periodRow, academyRow, phoneRow].forEach((row) => {
+    row.getCell(1).protection = { locked: false };
+    row.getCell(2).protection = { locked: false };
+  });
+  textbookRow.getCell(2).fill = xlsFill("FFF3F4F6");
+  textbookRow.getCell(2).font = { italic: true, color: { argb: "FF6B7280" } };
+  wsInfo.protect("", { selectLockedCells: true, selectUnlockedCells: true });
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  const safeClass = (form.className || "성적표").replace(/[\\/:*?"<>|]/g, "");
-  const filename = `${safeClass}${filenameSuffix}.xlsx`;
+  const filename = buildExcelFilename(form);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -338,11 +398,11 @@ async function parseExcelFile(file, partDefs, onSuccess, onError) {
       if (rowNumber === 1) return;
       const label = readCell(row.getCell(1).value);
       if (!label || SECTION_BREAK_ROWS.includes(label)) return;
-      if (label === COMMENT_ROW_LABEL) {
+      if (label === COMMENT_ROW_LABEL || label === COMMENT_ROW_LABEL_LEGACY) {
         students.forEach((s, i) => {
           const raw = row.getCell(3 + i).value;
           let text = raw === null || raw === undefined ? "" : String(raw);
-          if (text.startsWith("티쳐스 코멘트 (업로드시")) text = "";
+          if (text.startsWith("(업로드시") || text.startsWith("티쳐스 코멘트 (업로드시")) text = "";
           s.comment = text.slice(0, COMMENT_MAX_LEN);
         });
         return;
@@ -351,7 +411,7 @@ async function parseExcelFile(file, partDefs, onSuccess, onError) {
       if (!def) return;
       students.forEach((s, i) => {
         const raw = row.getCell(3 + i).value;
-        s[def.key] = clamp(raw === null || raw === undefined || raw === "" ? 0 : raw, def.max);
+        s[def.key] = clamp(raw, def.max);
       });
     });
 
@@ -361,13 +421,210 @@ async function parseExcelFile(file, partDefs, onSuccess, onError) {
   }
 }
 
+// 교재명 라벨("Susie's Day 1권") -> {textbook, level} 역변환
+function parseTextbookLabel(raw) {
+  const fallback = { textbook: TEXTBOOKS[0], level: TEXTBOOK_LEVELS[TEXTBOOKS[0]][0] };
+  if (!raw) return fallback;
+  const text = String(raw).trim();
+  const m = text.match(/^(.*)\s+(\d+)권$/);
+  if (m && TEXTBOOK_LEVELS[m[1].trim()]) {
+    return { textbook: m[1].trim(), level: Number(m[2]) };
+  }
+  if (TEXTBOOK_LEVELS[text]) {
+    return { textbook: text, level: TEXTBOOK_LEVELS[text][0] };
+  }
+  return fallback;
+}
+
+// Step1 "성적 수정 시 엑셀 업로드" - 기본정보 + 성적입력 시트를 함께 읽어서 폼과 학생 데이터를 복원
+async function parseFullExcelForEdit(file, onSuccess, onError) {
+  try {
+    const buffer = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buffer);
+
+    const infoWs = wb.getWorksheet("기본정보");
+    const infoMap = {};
+    if (infoWs) {
+      infoWs.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const k = row.getCell(1).value;
+        const v = row.getCell(2).value;
+        if (k) infoMap[String(k).trim()] = v === null || v === undefined ? "" : String(v).trim();
+      });
+    }
+
+    const teacher = infoMap["담임교사"] || "";
+    const className = infoMap["Class명"] || "";
+    const academyName = infoMap["학원명"] || "";
+    const phone = infoMap["전화번호"] || "";
+    const periodParts = (infoMap["수업일자"] || "").split("~").map((s) => s.trim());
+    const dateStart = periodParts[0] || "";
+    const dateEnd = periodParts[1] || "";
+    const { textbook, level } = parseTextbookLabel(infoMap["교재명"]);
+    const partDefs = getPartDefs(textbook);
+
+    const gradeWs = wb.getWorksheet("성적입력") || wb.worksheets[0];
+    if (!gradeWs) throw new Error("성적입력 시트를 찾을 수 없습니다.");
+
+    await new Promise((resolve, reject) => {
+      // parseExcelFile과 동일한 파싱 로직을 재사용하기 위해 워크북 버퍼를 그대로 넘김
+      parseExcelFile(file, partDefs, (students) => {
+        onSuccess({
+          form: { teacher, className, dateStart, dateEnd, academyName, phone, textbook, level },
+          students,
+        });
+        resolve();
+      }, (err) => { reject(err); onError(err); });
+    });
+  } catch (err) {
+    onError(err);
+  }
+}
+
+// 최종 성적표를 이미지(PNG)로 다운로드 (html2canvas로 캡처, 브라우저 인쇄창을 거치지 않음)
+// html2canvas가 flex justify-content:space-between을 안정적으로 반영하지 못하는 경우가 있어,
+// 캡처 직전에 실제 남는 여백을 JS로 계산해서 각 섹션 사이 margin-top으로 직접 나눠 넣는다.
+function fillCardHeightForCapture(cardEl, targetHeightPx) {
+  const BOTTOM_PADDING = 20; // 마지막 요소(footer) 아래에 항상 확보할 최소 여백
+  const children = Array.from(cardEl.children);
+  children.forEach((c) => c.style.removeProperty("margin-top"));
+  cardEl.style.removeProperty("height");
+  cardEl.style.removeProperty("justify-content");
+  cardEl.style.removeProperty("padding-bottom");
+  // 강제 리플로우 후 실측
+  // eslint-disable-next-line no-unused-expressions
+  cardEl.offsetHeight;
+  const naturalTotal = children.reduce((sum, c) => sum + c.getBoundingClientRect().height, 0);
+  // 목표 높이가 실제 콘텐츠보다 작으면 잘려나가므로, 절대 콘텐츠+하단여백보다 작아지지 않게 보정
+  const effectiveTarget = Math.max(targetHeightPx, naturalTotal + BOTTOM_PADDING + 8);
+  cardEl.style.setProperty("height", `${effectiveTarget}px`, "important");
+  // CSS의 justify-content:space-between이 남아있으면 마지막 요소를 강제로 바닥에 붙여버려서
+  // 아래에서 계산한 margin-top과 충돌한다 → flex-start로 고정해서 margin-top만으로 간격을 제어
+  cardEl.style.setProperty("justify-content", "flex-start", "important");
+  // padding-bottom은 마지막 자식(margin-top 대상이 아님) 뒤에도 실제 여백이 남도록 보장
+  cardEl.style.setProperty("padding-bottom", `${BOTTOM_PADDING}px`, "important");
+  const leftover = effectiveTarget - naturalTotal - BOTTOM_PADDING;
+  const gapCount = children.length - 1;
+  const gapEach = gapCount > 0 ? leftover / gapCount : 0;
+  children.forEach((c, i) => {
+    if (i > 0) c.style.setProperty("margin-top", `${gapEach}px`, "important");
+  });
+  return () => {
+    children.forEach((c) => c.style.removeProperty("margin-top"));
+    cardEl.style.removeProperty("height");
+    cardEl.style.removeProperty("justify-content");
+    cardEl.style.removeProperty("padding-bottom");
+  };
+}
+
+async function downloadReportAsImage(wrapperEl, filename) {
+  const cardEl = wrapperEl.querySelector(".report-card") || wrapperEl;
+  const revert = fillCardHeightForCapture(cardEl, 1010);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const canvas = await html2canvas(cardEl, {
+    scale: 3,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+  });
+  revert();
+  downloadFile(canvas.toDataURL("image/png"), filename);
+}
+
+// 캡처만 하고 canvas를 그대로 반환 (전체 다운로드/인쇄에서 재사용)
+// targetHeightPx를 다운로드 기본값(1010)보다 크게 주면, 섹션 사이 간격만 넓어지고
+// (fillCardHeightForCapture가 여백만 늘리므로) 각 섹션 자체의 크기/비율은 그대로 유지된다.
+async function captureReportCardCanvas(cardEl, targetHeightPx = 1010) {
+  const revert = fillCardHeightForCapture(cardEl, targetHeightPx);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const canvas = await html2canvas(cardEl, {
+    scale: 3,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+  });
+  revert();
+  return canvas;
+}
+
+// 캡처한 이미지를 그대로 인쇄 (이미지 다운로드와 동일한 결과물을 인쇄하기 위해,
+// 실시간 인쇄 레이아웃 대신 이미 검증된 캡처 이미지를 그대로 인쇄용 iframe에 넣는다)
+function printImagesViaIframe(items) {
+  // items: [{ url, widthPx, heightPx }] - widthPx/heightPx는 캡처 시점의 CSS 픽셀 크기(=화면에 보이던 실제 크기)
+  return new Promise((resolve) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.left = "-10000px";
+    iframe.style.top = "0";
+    iframe.style.width = "800px";
+    iframe.style.height = "1000px";
+    iframe.style.border = "0";
+    iframe.style.visibility = "hidden";
+    document.body.appendChild(iframe);
+
+    const pxToMm = (px) => (px / 96) * 25.4;
+
+    const pagesHtml = items
+      .map(({ url, widthPx, heightPx }, i) => {
+        const wMm = pxToMm(widthPx).toFixed(2);
+        const hMm = pxToMm(heightPx).toFixed(2);
+        return `
+        <div class="print-page-img"${i < items.length - 1 ? ' style="page-break-after: always;"' : ""}>
+          <img src="${url}" style="width:${wMm}mm; height:${hMm}mm;" />
+        </div>`;
+      })
+      .join("");
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            @page { size: A4; margin: 0; }
+            html, body { margin: 0; padding: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+            .print-page-img { display: flex; justify-content: center; align-items: flex-start; padding-top: 10mm; }
+            .print-page-img img { display: block; }
+          </style>
+        </head>
+        <body>${pagesHtml}</body>
+      </html>
+    `);
+    doc.close();
+
+    function cleanup() {
+      window.removeEventListener("focus", onFocusAfterPrint);
+      clearTimeout(fallbackTimer);
+      setTimeout(() => {
+        if (iframe.parentNode) document.body.removeChild(iframe);
+        resolve();
+      }, 300);
+    }
+    function onFocusAfterPrint() {
+      cleanup();
+    }
+    // focus 이벤트가 안 잡히는 환경(브라우저/OS 차이)을 대비한 안전장치 - 무한정 멈춰있지 않도록
+    let fallbackTimer;
+
+    // 이미지 로딩 및 레이아웃이 끝날 시간을 확보한 뒤 인쇄
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      window.addEventListener("focus", onFocusAfterPrint, { once: true });
+      iframe.contentWindow.print();
+      fallbackTimer = setTimeout(cleanup, 8000);
+    }, 250);
+  });
+}
+
 const GRADE_COLORS = {
-  "Perfect": { color: "#16a34a", bg: "#dcfce7" },
-  "Excellent": { color: "#0891b2", bg: "#cffafe" },
-  "Very Good": { color: "#2563eb", bg: "#dbeafe" },
-  "Good": { color: "#7c3aed", bg: "#ede9fe" },
-  "Not Bad": { color: "#ea580c", bg: "#ffedd5" },
-  "Practice More": { color: "#e11d48", bg: "#ffe4e6" },
+  "Perfect": { color: "#ffffff", bg: "#15803D" },
+  "Excellent": { color: "#ffffff", bg: "#65A30D" },
+  "Very Good": { color: "#ffffff", bg: "#EAB308" },
+  "Good": { color: "#ffffff", bg: "#F59E0B" },
+  "Not Bad": { color: "#ffffff", bg: "#EA580C" },
+  "Practice More": { color: "#ffffff", bg: "#DC2626" },
 };
 function grade100(pct) {
   let label;
@@ -419,9 +676,16 @@ export default function App() {
     Array.from({ length: 7 }, (_, i) => makeStudent(i + 1, partDefs))
   );
   const [reportIndex, setReportIndex] = useState(0);
+  const [editLocked, setEditLocked] = useState(false); // 엑셀 업로드로 기존 데이터를 불러온 경우 교재/권 잠금
+  const skipNextResetRef = React.useRef(false);
 
   // 교재가 바뀌면 영역 구성이 달라지므로 점수 필드를 새로 초기화 (이름/코멘트는 유지)
+  // 단, 엑셀 업로드로 폼+학생 데이터를 한번에 불러온 직후에는 건너뜀 (skipNextResetRef)
   useEffect(() => {
+    if (skipNextResetRef.current) {
+      skipNextResetRef.current = false;
+      return;
+    }
     setStudents((prev) => prev.map((s, i) => {
       const fresh = makeStudent(i + 1, partDefs);
       return { ...fresh, name: s.name, comment: s.comment };
@@ -462,11 +726,26 @@ export default function App() {
     setStudentCount(Math.max(1, trimmed.length));
   }
 
+  // Step1 "성적 수정 시 엑셀 업로드": 기본정보 + 학생 데이터를 한 번에 불러와 폼과 입력표를 복원
+  function applyUploadedEdit(data) {
+    skipNextResetRef.current = true;
+    setForm((f) => ({ ...f, ...data.form }));
+    replaceAllStudents(data.students);
+    setEditLocked(true);
+  }
+
+  // 성적·코멘트·학생명 전체 초기화 (학생 수는 유지)
+  function resetAllScores() {
+    setStudents((prev) => prev.map((s) => makeStudent(s.id, partDefs)));
+  }
+
   // 반평균 계산
   const classAverages = useMemo(() => {
     const avg = {};
+    const registered = students.filter((s) => isStudentRegistered(s, partDefs));
+    const pool = registered.length ? registered : students; // 등록된 학생이 하나도 없으면 전체로 폴백(0 방지용)
     partDefs.forEach((p) => {
-      const vals = students.map((s) => Number(s[p.key]) || 0);
+      const vals = pool.map((s) => Number(s[p.key]) || 0);
       const mean = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
       avg[p.key] = p.max ? (mean / p.max) * 100 : 0;
     });
@@ -481,6 +760,14 @@ export default function App() {
     return <AudioHome onHome={() => setEntry(null)} />;
   }
 
+  if (entry === "answers") {
+    return <AnswerHome onHome={() => setEntry(null)} />;
+  }
+
+  if (entry === "exams") {
+    return <ExamHome onHome={() => setEntry(null)} />;
+  }
+
   return (
     <div className="app-shell" style={{ minHeight: "100vh", background: "#f3f4f6", fontFamily: "'Pretendard','Malgun Gothic',sans-serif" }}>
       <StepIndicator step={step} />
@@ -490,6 +777,8 @@ export default function App() {
           setForm={setForm}
           onNext={() => setStep(2)}
           onHome={() => setEntry(null)}
+          editLocked={editLocked}
+          onUploadEdit={applyUploadedEdit}
         />
       )}
       {step === 2 && (
@@ -501,6 +790,7 @@ export default function App() {
           students={students}
           updateStudentField={updateStudentField}
           replaceAllStudents={replaceAllStudents}
+          resetAllScores={resetAllScores}
           onBack={() => setStep(1)}
           onNext={() => {
             setReportIndex(0);
@@ -527,28 +817,13 @@ export default function App() {
 // ---------- 대문 (Final Test 음원 듣기 / 성적표 입력) ----------
 function Landing({ onSelect }) {
   const [hover, setHover] = useState(null);
-  const accent = "#eb574f";
-  const cardBase = {
-    position: "relative", background: "#fff", borderRadius: 24,
-    padding: "48px 32px", textAlign: "center", cursor: "pointer",
-    border: "1px solid #eef0f3", overflow: "hidden",
-    transition: "box-shadow .2s ease, transform .2s ease, border-color .2s ease",
-  };
-  function cardStyle(key) {
-    const active = hover === key;
-    return {
-      ...cardBase,
-      boxShadow: active ? "0 20px 40px rgba(17,24,39,0.12)" : "0 2px 8px rgba(17,24,39,0.05)",
-      transform: active ? "translateY(-4px)" : "translateY(0)",
-      borderColor: active ? accent : "#eef0f3",
-    };
-  }
-  const kicker = { fontSize: 11, fontWeight: 800, letterSpacing: 2, color: accent, textTransform: "uppercase" };
-  const badgeStyle = {
-    width: 64, height: 64, borderRadius: 20, margin: "18px auto 0",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: 30, background: "linear-gradient(135deg,#fff1f0,#ffe4e1)",
-  };
+
+  const CARDS = [
+    { key: "audio", icon: "🎧", title: "음원 듣기", desc: "Final Test 음원을 재생합니다", accent: "#D85A30", chipBg: "#FAECE7", badgeText: "#712B13" },
+    { key: "grades", icon: "📝", title: "성적표 입력", desc: "학생 성적을 입력하고 출력합니다", accent: "#0F6E56", chipBg: "#E1F5EE", badgeText: "#085041" },
+    { key: "answers", icon: "📋", title: "답안지 보기", desc: "답안지를 바로 확인합니다", accent: "#534AB7", chipBg: "#EEEDFE", badgeText: "#26215C" },
+    { key: "exams", icon: "📄", title: "시험지 다운로드", desc: "시험지 PDF를 다운로드합니다", accent: "#854F0B", chipBg: "#FAEEDA", badgeText: "#633806" },
+  ];
 
   return (
     <div style={{
@@ -556,39 +831,37 @@ function Landing({ onSelect }) {
       background: "radial-gradient(circle at 50% -10%, #fff1f0 0%, #f3f4f6 55%)",
       display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
     }}>
-      <div style={{ maxWidth: 780, width: "100%" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <img src={gplumLogo} alt="Gplum" style={{ height: 52, margin: "0 auto 18px", display: "block" }} />
-          <div style={{ fontSize: 30, fontWeight: 900, color: "#111827", letterSpacing: -0.5 }}>Final Test</div>
-          <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6, fontWeight: 600 }}>원하시는 메뉴를 선택해주세요</div>
+      <div className="landing-container" style={{ maxWidth: 780, width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <img src={gplumLogo} alt="Gplum" className="landing-logo" style={{ height: 88, margin: "0 auto", display: "block" }} />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-          <button
-            onClick={() => onSelect("audio")}
-            style={cardStyle("audio")}
-            onMouseEnter={() => setHover("audio")}
-            onMouseLeave={() => setHover(null)}
-          >
-            <div style={badgeStyle}>🎧</div>
-            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>음원 듣기</div>
-            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>교재별 Final Test 음원을 재생합니다</div>
-            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "audio" ? accent : "#d1d5db" }}>시작하기 →</div>
-          </button>
-
-          <button
-            onClick={() => onSelect("grades")}
-            style={cardStyle("grades")}
-            onMouseEnter={() => setHover("grades")}
-            onMouseLeave={() => setHover(null)}
-          >
-            <div style={badgeStyle}>📝</div>
-            <div style={{ ...kicker, marginTop: 20 }}>Gplum · Final Test (인쇄용)</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginTop: 8 }}>성적표 입력</div>
-            <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>학생 성적을 입력하고 성적표를 출력합니다</div>
-            <div style={{ marginTop: 20, fontSize: 13, fontWeight: 800, color: hover === "grades" ? accent : "#d1d5db" }}>시작하기 →</div>
-          </button>
+        <div className="landing-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {CARDS.map((c) => (
+            <button
+              key={c.key}
+              onClick={() => onSelect(c.key)}
+              onMouseEnter={() => setHover(c.key)}
+              onMouseLeave={() => setHover(null)}
+              className="landing-card"
+              style={{
+                position: "relative", background: "#fff", borderRadius: 18,
+                padding: "26px 20px 20px", textAlign: "left", cursor: "pointer",
+                border: "1px solid #eef0f3", borderLeft: `4px solid ${c.accent}`,
+                boxShadow: hover === c.key ? "0 16px 32px rgba(17,24,39,0.10)" : "0 2px 8px rgba(17,24,39,0.05)",
+                transform: hover === c.key ? "translateY(-3px)" : "translateY(0)",
+                transition: "box-shadow .2s ease, transform .2s ease",
+              }}
+            >
+              <div className="landing-card-icon" style={{ width: 56, height: 56, borderRadius: 16, background: c.chipBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 14 }}>
+                {c.icon}
+              </div>
+              <span className="landing-card-badge" style={{ display: "inline-block", background: c.chipBg, color: c.badgeText, fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 6, marginBottom: 9 }}>FINAL TEST</span>
+              <div className="landing-card-title" style={{ fontSize: 19, fontWeight: 800, color: "#111827" }}>{c.title}</div>
+              <div className="landing-card-desc" style={{ fontSize: 12, color: "#9ca3af", margin: "5px 0 14px" }}>{c.desc}</div>
+              <div className="landing-card-cta" style={{ fontSize: 13, fontWeight: 800, color: c.accent }}>시작하기 →</div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -717,6 +990,225 @@ function audioPartOf(filename) {
   return m ? `Part ${m[1]}` : "기타";
 }
 
+// ---------- Final Test 시험지 다운로드 / 답안지 보기 ----------
+// 교재명 -> 폴더 슬러그 (public/exams/{slug}/{level}.pdf, public/answers/{slug}/{level}.pdf)
+const EXAM_ANSWER_SLUG = {
+  "Baby Bird's Adventure": "baby-bird-s-adventure",
+  "Daily Talk L1": "daily-talk-l1",
+  "Daily Talk L2": "daily-talk-l2",
+  "Here We Go!": "here-we-go",
+  "Listen to Me! L1": "listen-to-me-l1",
+  "Mr.Grammar": "mr-grammar",
+  "Never Study Land": "never-study-land",
+  "Phonics Buddy": "phonics-buddy",
+  "Phonics Is Fun": "phonics-is-fun",
+  "Read Right L1": "read-right-l1",
+  "Read Right L2": "read-right-l2",
+  "Susie's Day": "susie-s-day",
+  "What Do You Do?": "what-do-you-do",
+  "Where's Coco?": "where-s-coco",
+};
+// 교재명 -> 실제로 파일이 준비된 권 목록
+const EXAM_ANSWER_LEVELS = {
+  "Baby Bird's Adventure": [1, 2, 3, 4],
+  "Daily Talk L1": [1, 2, 3, 4],
+  "Daily Talk L2": [1, 2, 3],
+  "Here We Go!": [1, 2, 3, 4],
+  "Listen to Me! L1": [1, 2, 3],
+  "Mr.Grammar": [1, 2, 3, 4],
+  "Never Study Land": [1, 2, 3, 4],
+  "Phonics Buddy": [1, 2, 3, 4],
+  "Phonics Is Fun": [1, 2, 3],
+  "Read Right L1": [1, 2, 3, 4],
+  "Read Right L2": [1, 2, 3, 4],
+  "Susie's Day": [1, 2, 3, 4],
+  "What Do You Do?": [1, 2, 3],
+  "Where's Coco?": [1, 2, 3, 4],
+};
+function examUrl(textbook, level) {
+  const slug = EXAM_ANSWER_SLUG[textbook];
+  const fname = EXAM_FILENAMES[textbook] && EXAM_FILENAMES[textbook][level];
+  return `/exams/${slug}/${level}/${encodeURIComponent(fname)}`;
+}
+function answerUrl(textbook, level) {
+  const slug = EXAM_ANSWER_SLUG[textbook];
+  const fname = ANSWER_FILENAMES[textbook] && ANSWER_FILENAMES[textbook][level];
+  return `/answers/${slug}/${level}/${encodeURIComponent(fname)}`;
+}
+const EXAM_FILENAMES = {
+  "Baby Bird's Adventure": {
+    1: "Exam_BBA_1.pdf",
+    2: "Exam_BBA_2.pdf",
+    3: "Exam_BBA_3.pdf",
+    4: "Exam_BBA_4.pdf",
+  },
+  "Daily Talk L1": {
+    1: "Exam_DTL1_1.pdf",
+    2: "Exam_DTL1_2.pdf",
+    3: "Exam_DTL1_3.pdf",
+    4: "Exam_DTL1_4.pdf",
+  },
+  "Daily Talk L2": {
+    1: "Exam_DTL2_1.pdf",
+    2: "Exam_DTL2_2.pdf",
+    3: "Exam_DTL2_3.pdf",
+  },
+  "Here We Go!": {
+    1: "Exam_HWG_1.pdf",
+    2: "Exam_HWG_2.pdf",
+    3: "Exam_HWG_3.pdf",
+    4: "Exam_HWG_4.pdf",
+  },
+  "Listen to Me! L1": {
+    1: "Exam_LTM1_1.pdf",
+    2: "Exam_LTM1_2.pdf",
+    3: "Exam_LTM1_3.pdf",
+  },
+  "Mr.Grammar": {
+    1: "Exam_GRM_1.pdf",
+    2: "Exam_GRM_2.pdf",
+    3: "Exam_GRM_3.pdf",
+    4: "Exam_GRM_4.pdf",
+  },
+  "Never Study Land": {
+    1: "Exam_NSL_1.pdf",
+    2: "Exam_NSL_2.pdf",
+    3: "Exam_NSL_3.pdf",
+    4: "Exam_NSL_4.pdf",
+  },
+  "Phonics Buddy": {
+    1: "Exam_PBD_1.pdf",
+    2: "Exam_PBD_2.pdf",
+    3: "Exam_PBD_3.pdf",
+    4: "Exam_PBD_4.pdf",
+  },
+  "Phonics Is Fun": {
+    1: "Exam_PIF_1.pdf",
+    2: "Exam_PIF_2.pdf",
+    3: "Exam_PIF_3.pdf",
+  },
+  "Read Right L1": {
+    1: "Exam_RRL1_1.pdf",
+    2: "Exam_RRL1_2.pdf",
+    3: "Exam_RRL1_3.pdf",
+    4: "Exam_RRL1_4.pdf",
+  },
+  "Read Right L2": {
+    1: "Exam_RRL2_1.pdf",
+    2: "Exam_RRL2_2.pdf",
+    3: "Exam_RRL2_3.pdf",
+    4: "Exam_RRL2_4.pdf",
+  },
+  "Susie's Day": {
+    1: "Exam_SD_1.pdf",
+    2: "Exam_SD_2.pdf",
+    3: "Exam_SD_3.pdf",
+    4: "Exam_SD_4.pdf",
+  },
+  "What Do You Do?": {
+    1: "Exam_WDYD_1.pdf",
+    2: "Exam_WDYD_2.pdf",
+    3: "Exam_WDYD_3.pdf",
+  },
+  "Where's Coco?": {
+    1: "Exam_WC_1.pdf",
+    2: "Exam_WC_2.pdf",
+    3: "Exam_WC_3.pdf",
+    4: "Exam_WC_4.pdf",
+  },
+};
+const ANSWER_FILENAMES = {
+  "Baby Bird's Adventure": {
+    1: "Answers_BBA_1.pdf",
+    2: "Answers_BBA_2.pdf",
+    3: "Answers_BBA_3.pdf",
+    4: "Answers_BBA_4.pdf",
+  },
+  "Daily Talk L1": {
+    1: "Answers_DTL1_1.pdf",
+    2: "Answers_DTL1_2.pdf",
+    3: "Answers_DTL1_3.pdf",
+    4: "Answers_DTL1_4.pdf",
+  },
+  "Daily Talk L2": {
+    1: "Answers_DTL2_1.pdf",
+    2: "Answers_DTL2_2.pdf",
+    3: "Answers_DTL2_3.pdf",
+  },
+  "Here We Go!": {
+    1: "Answers_HWG_1.pdf",
+    2: "Answers_HWG_2.pdf",
+    3: "Answers_HWG_3.pdf",
+    4: "Answers_HWG_4.pdf",
+  },
+  "Listen to Me! L1": {
+    1: "Answers_LTM1_1.pdf",
+    2: "Answers_LTM1_2.pdf",
+    3: "Answers_LTM1_3.pdf",
+  },
+  "Mr.Grammar": {
+    1: "Answers_GRM_1.pdf",
+    2: "Answers_GRM_2.pdf",
+    3: "Answers_GRM_3.pdf",
+    4: "Answers_GRM_4.pdf",
+  },
+  "Never Study Land": {
+    1: "Answers_NSL_1.pdf",
+    2: "Answers_NSL_2.pdf",
+    3: "Answers_NSL_3.pdf",
+    4: "Answers_NSL_4.pdf",
+  },
+  "Phonics Buddy": {
+    1: "Answers_PBD_1.pdf",
+    2: "Answers_PBD_2.pdf",
+    3: "Answers_PBD_3.pdf",
+    4: "Answers_PBD_4.pdf",
+  },
+  "Phonics Is Fun": {
+    1: "Answers_PIF_1.pdf",
+    2: "Answers_PIF_2.pdf",
+    3: "Answers_PIF_3.pdf",
+  },
+  "Read Right L1": {
+    1: "Answers_RRL1_1.pdf",
+    2: "Answers_RRL1_2.pdf",
+    3: "Answers_RRL1_3.pdf",
+    4: "Answers_RRL1_4.pdf",
+  },
+  "Read Right L2": {
+    1: "Answers_RRL2_1.pdf",
+    2: "Answers_RRL2_2.pdf",
+    3: "Answers_RRL2_3.pdf",
+    4: "Answers_RRL2_4.pdf",
+  },
+  "Susie's Day": {
+    1: "Answers_SD_1.pdf",
+    2: "Answers_SD_2.pdf",
+    3: "Answers_SD_3.pdf",
+    4: "Answers_SD_4.pdf",
+  },
+  "What Do You Do?": {
+    1: "Answers_WDYD_1.pdf",
+    2: "Answers_WDYD_2.pdf",
+    3: "Answers_WDYD_3.pdf",
+  },
+  "Where's Coco?": {
+    1: "Answers_WC_1.pdf",
+    2: "Answers_WC_2.pdf",
+    3: "Answers_WC_3.pdf",
+    4: "Answers_WC_4.pdf",
+  },
+};
+
+function downloadFile(url, filename) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 function AudioHome({ onHome }) {
   const [selected, setSelected] = useState(null); // { textbook, level }
   if (!selected) {
@@ -742,9 +1234,9 @@ function AudioLevelPicker({ onPick, onHome }) {
           {TEXTBOOKS.filter((t) => t !== "Mr.Grammar").map((t) => {
             const levels = TEXTBOOK_LEVELS[t] || [];
             return (
-              <div key={t} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
-                <div style={{ minWidth: 170, fontWeight: 700, color: "#111827", fontSize: 14 }}>{t}</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div key={t} className="audio-book-row" style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
+                <div className="audio-book-label" style={{ minWidth: 170, fontWeight: 700, color: "#111827", fontSize: 14 }}>{t}</div>
+                <div className="audio-level-boxes" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {levels.map((lv) => {
                     const has = !!(AUDIO_LIBRARY[t] && AUDIO_LIBRARY[t][lv]);
                     return (
@@ -753,6 +1245,7 @@ function AudioLevelPicker({ onPick, onHome }) {
                         disabled={!has}
                         onClick={() => has && onPick(t, lv)}
                         title={has ? `${lv}권 음원 듣기` : "음원 준비중"}
+                        className="audio-level-box"
                         style={{
                           width: 38, height: 38, borderRadius: 8,
                           border: has ? "1.5px solid #111827" : "1.5px solid #e5e7eb",
@@ -772,6 +1265,118 @@ function AudioLevelPicker({ onPick, onHome }) {
         <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 14 }}>
           * 음원은 교재별로 순차적으로 추가될 예정입니다. 회색 숫자는 아직 음원이 준비되지 않은 권입니다.
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- 답안지 보기 / 시험지 다운로드 (음원 듣기와 동일한 화면 구성) ----------
+function TextbookLevelPicker({ title, subtitle, onHome, onPick }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
+      <div style={{ maxWidth: 760, margin: "0 auto", padding: "30px 20px" }}>
+        <button onClick={onHome} className="print-hide" style={secondaryBtn}>← 처음으로</button>
+        <div style={{ fontSize: 20, fontWeight: 800, margin: "18px 0 14px", color: "#111827" }}>{title}</div>
+        <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", padding: "6px 20px" }}>
+          {TEXTBOOKS.map((t) => {
+            const levels = TEXTBOOK_LEVELS[t] || [];
+            return (
+              <div key={t} className="audio-book-row" style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #f1f5f9", flexWrap: "wrap" }}>
+                <div className="audio-book-label" style={{ minWidth: 170, fontWeight: 700, color: "#111827", fontSize: 14 }}>{t}</div>
+                <div className="audio-level-boxes" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {levels.map((lv) => {
+                    const has = !!(EXAM_ANSWER_LEVELS[t] && EXAM_ANSWER_LEVELS[t].includes(lv));
+                    return (
+                      <button
+                        key={lv}
+                        disabled={!has}
+                        onClick={() => has && onPick(t, lv)}
+                        title={has ? `${lv}권 ${subtitle}` : "준비중"}
+                        className="audio-level-box"
+                        style={{
+                          width: 38, height: 38, borderRadius: 8,
+                          border: has ? "1.5px solid #111827" : "1.5px solid #e5e7eb",
+                          background: has ? "#fff" : "#f9fafb",
+                          color: has ? "#111827" : "#d1d5db",
+                          fontWeight: 800, fontSize: 14,
+                          cursor: has ? "pointer" : "not-allowed",
+                        }}
+                      >{lv}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 14 }}>
+          * {subtitle}는 교재별로 순차적으로 추가될 예정입니다. 회색 숫자는 아직 준비되지 않은 권입니다.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AnswerHome({ onHome }) {
+  const [viewing, setViewing] = useState(null); // { textbook, level }
+  return (
+    <>
+      <TextbookLevelPicker
+        title="Final Test 답안지 보기"
+        subtitle="답안지"
+        onHome={onHome}
+        onPick={(t, lv) => setViewing({ textbook: t, level: lv })}
+      />
+      {viewing && (
+        <PdfModal
+          title={`${viewing.textbook} ${viewing.level}권 답안지`}
+          url={answerUrl(viewing.textbook, viewing.level)}
+          onClose={() => setViewing(null)}
+        />
+      )}
+    </>
+  );
+}
+
+function ExamHome({ onHome }) {
+  return (
+    <TextbookLevelPicker
+      title="Final Test 시험지 다운로드"
+      subtitle="시험지"
+      onHome={onHome}
+      onPick={(t, lv) => {
+        const original = EXAM_FILENAMES[t] && EXAM_FILENAMES[t][lv];
+        downloadFile(examUrl(t, lv), original || `[시험지] ${t} ${lv} Final Test.pdf`);
+      }}
+    />
+  );
+}
+
+function PdfModal({ title, url, onClose }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(17,24,39,0.65)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: "#fff", borderRadius: 14, width: "100%", maxWidth: 900, height: "90vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid #e5e7eb" }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{title}</span>
+          <button
+            onClick={onClose}
+            aria-label="닫기"
+            style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb", fontSize: 16, fontWeight: 700, color: "#374151", cursor: "pointer" }}
+          >✕</button>
+        </div>
+        <iframe src={url} title={title} style={{ flex: 1, border: "none", width: "100%" }} />
       </div>
     </div>
   );
@@ -938,7 +1543,11 @@ function StepIndicator({ step }) {
 }
 
 // ---------- STEP 1 ----------
-function Step1({ form, setForm, onNext, onHome }) {
+function Step1({ form, setForm, onNext, onHome, editLocked, onUploadEdit }) {
+  const [uploadError, setUploadError] = useState("");
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const editFileInputRef = React.useRef(null);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const canProceed = form.teacher && form.className && form.dateStart && form.dateEnd && form.academyName && form.textbook && form.level;
   const availableLevels = TEXTBOOK_LEVELS[form.textbook] || [1];
@@ -948,6 +1557,31 @@ function Step1({ form, setForm, onNext, onHome }) {
     const levels = TEXTBOOK_LEVELS[t] || [1];
     setForm((f) => ({ ...f, textbook: t, level: levels[0] }));
   }
+
+  function handleEditUploadClick() {
+    setUploadError("");
+    editFileInputRef.current?.click();
+  }
+  function handleEditFileChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setUploadBusy(true);
+    parseFullExcelForEdit(
+      file,
+      (data) => {
+        onUploadEdit(data);
+        setUploadBusy(false);
+        setUploadError("");
+      },
+      (err) => {
+        setUploadBusy(false);
+        setUploadError(err?.message || "업로드 중 오류가 발생했습니다.");
+      }
+    );
+    e.target.value = "";
+  }
+
+  const lockedSelectStyle = { ...inputStyle, background: "#f3f4f6", color: "#6b7280", cursor: "not-allowed" };
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 20px" }}>
@@ -960,8 +1594,13 @@ function Step1({ form, setForm, onNext, onHome }) {
           <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginTop: 4 }}>성적표 기본 정보 입력</div>
         </div>
         <div style={{ padding: "28px" }}>
+          {editLocked && (
+            <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#9a3412", marginBottom: 18 }}>
+              📤 업로드한 엑셀 데이터를 불러왔습니다. 교재명·권은 데이터 구조상 변경할 수 없습니다.
+            </div>
+          )}
           <Field label="담임교사" required>
-            <input style={inputStyle} placeholder="예) Sophie" value={form.teacher} onChange={set("teacher")} />
+            <input style={inputStyle} placeholder="예) Lucy" value={form.teacher} onChange={set("teacher")} />
           </Field>
           <Field label="Class명" required>
             <input style={inputStyle} placeholder="예) Harvard" value={form.className} onChange={set("className")} />
@@ -980,14 +1619,14 @@ function Step1({ form, setForm, onNext, onHome }) {
             <input style={inputStyle} placeholder="예) 02-567-0582" value={form.phone} onChange={set("phone")} />
           </Field>
           <Field label="교재명" required>
-            <select style={inputStyle} value={form.textbook} onChange={handleTextbookChange}>
+            <select style={editLocked ? lockedSelectStyle : inputStyle} value={form.textbook} onChange={handleTextbookChange} disabled={editLocked}>
               {TEXTBOOKS.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
           </Field>
           <Field label="권 (레벨)" required>
-            <select style={inputStyle} value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: Number(e.target.value) }))}>
+            <select style={editLocked ? lockedSelectStyle : inputStyle} value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: Number(e.target.value) }))} disabled={editLocked}>
               {availableLevels.map((lv) => (
                 <option key={lv} value={lv}>{lv}권</option>
               ))}
@@ -1016,6 +1655,37 @@ function Step1({ form, setForm, onNext, onHome }) {
           </div>
         </div>
       </div>
+
+      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", overflow: "hidden", marginTop: 20 }}>
+        <div style={{ background: "linear-gradient(90deg,#4b5563,#1f2937)", padding: "22px 28px" }}>
+          <div style={{ color: "#fff", fontSize: 12, letterSpacing: 2, opacity: 0.85 }}>GnB EDUCATION</div>
+          <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginTop: 4 }}>성적 수정 시 → 엑셀로 업로드</div>
+        </div>
+        <div style={{ padding: "28px" }}>
+          <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, marginTop: 0 }}>
+            이미 작성해둔 엑셀 성적 파일(기본정보 + 성적입력 시트 포함)이 있다면 업로드해서 기본정보와 학생 성적을 한 번에 불러올 수 있습니다.
+          </p>
+          <button
+            onClick={handleEditUploadClick}
+            disabled={uploadBusy}
+            style={{
+              width: "100%", padding: "14px",
+              borderRadius: 10, border: "1px solid #d1d5db", fontSize: 15, fontWeight: 700,
+              cursor: uploadBusy ? "not-allowed" : "pointer",
+              background: "#fff", color: "#374151",
+            }}
+          >
+            {uploadBusy ? "불러오는 중…" : "📤 엑셀 파일 업로드"}
+          </button>
+          <input ref={editFileInputRef} type="file" accept=".xlsx,.xls" onChange={handleEditFileChange} style={{ display: "none" }} />
+          {uploadError && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "#dc2626" }}>⚠ {uploadError}</div>
+          )}
+          <div style={{ marginTop: 14, fontSize: 12, color: "#c2410c", textAlign: "center", fontWeight: 700 }}>
+            * 성적 수정 시에만 사용합니다.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1037,16 +1707,32 @@ const inputStyle = {
 };
 
 // ---------- STEP 2 ----------
-const LABEL_W = 176;
-const MAXCOL_W = 60;
-const STUDENT_COL_W = 84;
+const LABEL_W_DESKTOP = 176, MAXCOL_W_DESKTOP = 60, STUDENT_COL_W_DESKTOP = 84;
+const LABEL_W_MOBILE = 100, MAXCOL_W_MOBILE = 38, STUDENT_COL_W_MOBILE = 98;
+// <col> 요소는 CSS 변수(var())로 폭을 지정해도 브라우저가 안정적으로 반영하지 않는 경우가 있어,
+// 화면 폭을 JS에서 직접 감지해서 픽셀 값을 계산한다.
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= breakpoint);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const handler = () => setIsMobile(mq.matches);
+    handler();
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
 const COMMENT_ROW_W = 160;
 
-function Step2({ form, partDefs, studentCount, updateStudentCount, students, updateStudentField, replaceAllStudents, onBack, onNext }) {
+function Step2({ form, partDefs, studentCount, updateStudentCount, students, updateStudentField, replaceAllStudents, resetAllScores, onBack, onNext }) {
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = React.useRef(null);
   const tableWrapRef = React.useRef(null);
   const gridFields = useMemo(() => buildGridFields(partDefs), [partDefs]);
+  const isMobile = useIsMobile();
+  const LABEL_W = isMobile ? LABEL_W_MOBILE : LABEL_W_DESKTOP;
+  const MAXCOL_W = isMobile ? MAXCOL_W_MOBILE : MAXCOL_W_DESKTOP;
+  const STUDENT_COL_W = isMobile ? STUDENT_COL_W_MOBILE : STUDENT_COL_W_DESKTOP;
 
   function handleUploadClick() {
     setUploadError("");
@@ -1090,28 +1776,28 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
   }
 
   const rowLabelStyle = {
-    position: "sticky", left: 0, background: "#fecaca", zIndex: 2,
-    padding: "7px 10px", fontSize: 12, fontWeight: 700, color: "#7f1d1d",
-    borderRight: "2px solid #fff", borderBottom: "1px solid #fca5a5",
+    position: "sticky", left: 0, background: "#FBDCCC", zIndex: 2,
+    padding: "8px 10px", fontSize: 14, fontWeight: 700, color: "#712B13",
+    borderRight: "2px solid #fff", borderBottom: "1px solid #F0997B",
     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left",
   };
   const maxColStyle = {
     position: "sticky", left: LABEL_W, background: "#e5e7eb", zIndex: 2,
-    padding: "7px 6px", fontSize: 12, fontWeight: 800, color: "#374151",
+    padding: "8px 6px", fontSize: 14, fontWeight: 800, color: "#374151",
     borderRight: "2px solid #cbd5e1", borderBottom: "1px solid #d1d5db",
     textAlign: "center",
   };
   const groupMaxStyle = { ...maxColStyle, background: "#f1f5f9", borderBottom: "1px solid #d1d5db" };
 
   const dataCellStyle = (i, isLast) => ({
-    padding: 3, background: i % 2 === 0 ? "#fef9c3" : "#fef3c7",
-    borderRight: isLast ? "none" : "2px solid #fbbf24",
-    borderBottom: "1px solid #fde68a",
+    padding: 3, background: i % 2 === 0 ? "#FEF6F1" : "#FCE9E1",
+    borderRight: isLast ? "none" : "2px solid #F0997B",
+    borderBottom: "1px solid #F5C4AC",
     textAlign: "center",
   });
   const cellInput = {
-    width: "100%", maxWidth: 56, textAlign: "center", padding: "5px 2px", fontSize: 12,
-    border: "1px solid #fbbf24", borderRadius: 4, background: "#fffbeb", boxSizing: "border-box",
+    width: "100%", minWidth: 0, maxWidth: 56, height: 36, textAlign: "center", padding: "5px 2px", fontSize: 15, fontWeight: 600,
+    border: "1px solid #F0997B", borderRadius: 6, background: "#FAECE7", color: "#712B13", boxSizing: "border-box",
   };
 
   // 섹션 전체 헤더 행 (Final Test Achievement / Class Performance) - 표 전체 폭을 가로지르는 큰 구분 행
@@ -1137,7 +1823,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
             <td
               key={s.id}
               style={{
-                padding: "6px 3px", textAlign: "center", fontWeight: 800, fontSize: 13, color: theme.labelText,
+                padding: "8px 3px", textAlign: "center", fontWeight: 700, fontSize: 20, color: theme.labelText,
                 background: i % 2 === 0 ? theme.totalCellA : theme.totalCellB,
                 borderRight: i === students.length - 1 ? "none" : `2px solid ${theme.border}`,
               }}
@@ -1152,53 +1838,79 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
 
   // Final Test Achievement (Part I~V) 테마
   const testTheme = {
-    labelText: "#7f1d1d", border: "#fbbf24",
-    totalLabel: "#fca5a5", totalMax: "#f1f5f9", totalCellA: "#fde68a", totalCellB: "#fcd34d",
+    labelText: "#712B13", border: "#F0997B",
+    totalLabel: "#F5C4AC", totalMax: "#f1f5f9", totalCellA: "#FBDCCC", totalCellB: "#F5C4AC",
   };
   const testTotalMax = partDefs.reduce((a, p) => a + Number(p.max || 0), 0);
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "30px 20px" }}>
-      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", overflow: "hidden" }}>
-        <div style={{ padding: "20px 26px", borderBottom: "1px solid #f1f5f9" }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", marginBottom: 10 }}>학생 성적 입력표</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 22px", fontSize: 13, color: "#374151" }}>
-            <span><b>담임교사</b> {form.teacher}</span>
-            <span><b>Class명</b> {form.className}</span>
-            <span><b>수업일자</b> {form.dateStart} ~ {form.dateEnd}</span>
-            <span><b>교재명</b> {textbookLabel(form)}</span>
-            <span><b>학원명</b> {form.academyName}</span>
-            {form.phone && <span><b>전화</b> {form.phone}</span>}
-          </div>
-        </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", marginBottom: 16 }}>학생 성적 입력표</div>
 
+      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", padding: "20px 24px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          <span style={{ fontSize: 18 }}>ℹ️</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>기본 정보</span>
+        </div>
+        <div className="step2-info-grid" style={{ display: "flex", flexWrap: "wrap", border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden" }}>
+          {[
+            ["담임교사", form.teacher, 1],
+            ["Class명", form.className, 1],
+            ["수업일자", <>{form.dateStart}<br />~ {form.dateEnd}</>, 1.6],
+            ["교재명", textbookLabel(form), 1.4],
+            ["학원명", form.academyName, 1],
+            ...(form.phone ? [["전화", form.phone, 1]] : []),
+          ].map(([label, value, flex], i, arr) => (
+            <div key={label} className="step2-info-cell" style={{ flex, minWidth: 120, padding: "10px 14px", borderRight: i === arr.length - 1 ? "none" : "1px solid #e5e7eb" }}>
+              <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{value || "-"}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", overflow: "hidden" }}>
         <div style={{ padding: "14px 26px", background: "#eff6ff", borderBottom: "1px solid #dbeafe", fontSize: 12, color: "#1e3a8a", lineHeight: 1.7 }}>
           <div>* 입력값은 중간 저장이 되지 않으니, 새로고침에 유의하세요.</div>
-          <div>* 현재 페이지에서 데이터 입력 도중 '엑셀 템플릿 다운로드' 클릭 시, 입력한 데이터가 반영된 엑셀 파일을 다운로드 받으실 수 있습니다. (웹 상에서는 중간 저장이 되지 않으니, 중간 저장이 필요하다면 해당 기능을 사용해 주세요.)</div>
+          <div>* '엑셀 템플릿 다운로드'는 화면에 입력된 내용과 상관없이 항상 빈 템플릿으로 다운로드됩니다. (현재 화면 입력을 그대로 저장하려는 용도가 아닙니다)</div>
           <div>* '엑셀 템플릿 다운로드' 클릭 → 엑셀 파일에 데이터 입력 → '엑셀 파일 첨부(데이터 일괄 입력)' 클릭으로 전체 데이터를 일괄 입력할 수 있습니다.</div>
         </div>
 
-        <div style={{ padding: "16px 26px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, borderBottom: "1px solid #f1f5f9" }}>
+        <div className="step2-toolbar" style={{ padding: "16px 26px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, borderBottom: "1px solid #f1f5f9" }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>학생 수</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={() => updateStudentCount(studentCount - 1)} style={stepperBtn}>-</button>
+            <button onClick={() => updateStudentCount(studentCount - 1)} className="stepper-btn" style={stepperBtn}>-</button>
             <span style={{ minWidth: 24, textAlign: "center", fontWeight: 700 }}>{studentCount}</span>
-            <button onClick={() => updateStudentCount(studentCount + 1)} style={stepperBtn}>+</button>
+            <button onClick={() => updateStudentCount(studentCount + 1)} className="stepper-btn" style={stepperBtn}>+</button>
           </div>
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>‘만점’ 열은 교재 기준 고정값이며 수정할 수 없습니다. 입력값은 만점을 초과할 수 없습니다.</span>
+          <span className="step2-hint" style={{ fontSize: 12, color: "#9ca3af" }}>‘만점’ 열은 교재 기준 고정값이며 수정할 수 없습니다. 입력값은 만점을 초과할 수 없습니다.</span>
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => exportStudentsToExcel(form, students, partDefs, "_템플릿")} style={secondaryBtn}>📥 엑셀 템플릿 다운로드</button>
+          <div className="step2-toolbar-actions" style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              onClick={() => {
+                const blankStudents = Array.from({ length: studentCount }, (_, i) => makeStudent(i + 1, partDefs));
+                exportStudentsToExcel(form, blankStudents, partDefs);
+              }}
+              style={secondaryBtn}
+            >📥 엑셀 템플릿 다운로드</button>
             <button onClick={handleUploadClick} style={secondaryBtn}>📤 엑셀 파일 첨부(데이터 일괄 입력)</button>
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{ display: "none" }} />
+            <button
+              onClick={() => {
+                if (window.confirm("입력한 모든 학생명·성적·코멘트를 초기화합니다. (학생 수만 유지됩니다) 계속할까요?")) {
+                  resetAllScores();
+                }
+              }}
+              style={{ ...secondaryBtn, color: "#dc2626", borderColor: "#fecaca" }}
+            >🗑 초기화</button>
           </div>
         </div>
         {uploadError && (
           <div style={{ padding: "0 26px 12px", color: "#dc2626", fontSize: 12 }}>⚠ {uploadError}</div>
         )}
 
-        <div ref={tableWrapRef} style={{ overflowX: "auto", padding: "18px 26px" }}>
-          <table style={{ borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
+        <div ref={tableWrapRef} className="step2-table-scroll" style={{ overflowX: "auto", padding: "18px 26px" }}>
+          <table style={{ borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed", width: "100%", minWidth: LABEL_W + MAXCOL_W + STUDENT_COL_W * students.length }}>
             <colgroup>
               <col style={{ width: LABEL_W }} />
               <col style={{ width: MAXCOL_W }} />
@@ -1206,17 +1918,18 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
             </colgroup>
             <thead>
               <tr>
-                <th style={{ ...rowLabelStyle, background: "#111827", color: "#fff", zIndex: 3 }}>학생명</th>
-                <th style={{ ...maxColStyle, background: "#111827", color: "#fff", zIndex: 3 }}>만점</th>
+                <th style={{ ...rowLabelStyle, width: LABEL_W, minWidth: LABEL_W, maxWidth: LABEL_W, background: "#111827", color: "#fff", zIndex: 3, fontSize: 14 }}>학생명</th>
+                <th style={{ ...maxColStyle, width: MAXCOL_W, minWidth: MAXCOL_W, maxWidth: MAXCOL_W, background: "#111827", color: "#fff", zIndex: 3, fontSize: 14 }}>만점</th>
                 {students.map((s, i) => (
-                  <th key={s.id} style={{ padding: "4px 3px", background: "#111827", borderRight: i === students.length - 1 ? "none" : "2px solid #374151" }}>
+                  <th key={s.id} className="snap-col" style={{ width: STUDENT_COL_W, minWidth: STUDENT_COL_W, maxWidth: STUDENT_COL_W, padding: "6px 4px", background: "#111827", borderRight: i === students.length - 1 ? "none" : "2px solid #374151" }}>
                     <input
                       value={s.name}
                       onChange={(e) => updateStudentField(i, "name", e.target.value)}
                       onKeyDown={(e) => handleGridKeyDown(e, "name", i)}
                       data-field="name" data-col={i}
                       placeholder="학생명 입력"
-                      style={{ width: "100%", boxSizing: "border-box", textAlign: "center", padding: "4px 2px", fontSize: 12, border: "1px solid #4b5563", borderRadius: 4, color: "#111827", background: s.name ? "#fff" : "#f3f4f6" }}
+                      className="student-name-input"
+                      style={{ width: "100%", minWidth: 0, height: 34, boxSizing: "border-box", textAlign: "center", padding: "4px 2px", fontSize: 13, fontWeight: 600, border: "1px solid #4b5563", borderRadius: 6, color: "#111827", background: s.name ? "#fff" : "#374151" }}
                     />
                   </th>
                 ))}
@@ -1238,6 +1951,8 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
                         onFocus={(e) => e.target.select()}
                         onKeyDown={(e) => handleGridKeyDown(e, p.key, i)}
                         data-field={p.key} data-col={i}
+                        placeholder="입력"
+                        className="score-input"
                         style={cellInput}
                       />
                     </td>
@@ -1249,23 +1964,23 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
               <BigHeaderRow label="Class Performance" bg="#1f2937" />
 
               <SectionRows title="Participation (참여도)" defs={PARTICIPATION_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
-                theme={{ label: "#bfdbfe", labelText: "#1e3a8a", group: "#93c5fd", dataA: "#eff6ff", dataB: "#dbeafe", border: "#93c5fd", inputBorder: "#60a5fa", inputBg: "#eff6ff", totalLabel: "#93c5fd", totalMax: "#f1f5f9", totalCellA: "#bfdbfe", totalCellB: "#93c5fd" }}
+                theme={{ label: "#CBEEE0", labelText: "#085041", group: "#9FE0C8", dataA: "#F3FBF8", dataB: "#E1F5EE", border: "#5DCAA5", inputBorder: "#5DCAA5", inputBg: "#E1F5EE", totalLabel: "#9FE0C8", totalMax: "#f1f5f9", totalCellA: "#CBEEE0", totalCellB: "#9FE0C8" }}
                 totalLabel="총점 (참여도)" totalMax={30}
               />
               <SectionRows title="Behavior (태도)" defs={BEHAVIOR_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
-                theme={{ label: "#ddd6fe", labelText: "#4c1d95", group: "#c4b5fd", dataA: "#f5f3ff", dataB: "#ede9fe", border: "#c4b5fd", inputBorder: "#a78bfa", inputBg: "#f5f3ff", totalLabel: "#c4b5fd", totalMax: "#f1f5f9", totalCellA: "#ddd6fe", totalCellB: "#c4b5fd" }}
+                theme={{ label: "#DDDAFC", labelText: "#26215C", group: "#C3BDF5", dataA: "#F7F6FE", dataB: "#EEEDFE", border: "#AFA9EC", inputBorder: "#AFA9EC", inputBg: "#EEEDFE", totalLabel: "#C3BDF5", totalMax: "#f1f5f9", totalCellA: "#DDDAFC", totalCellB: "#C3BDF5" }}
                 totalLabel="총점 (태도)" totalMax={30}
               />
               <SectionRows title="Homework (숙제)" defs={HOMEWORK_DEFS} students={students} update={updateStudentField} maxColStyle={maxColStyle} groupMaxStyle={groupMaxStyle} onNav={handleGridKeyDown}
-                theme={{ label: "#fed7aa", labelText: "#7c2d12", group: "#fdba74", dataA: "#fff7ed", dataB: "#ffedd5", border: "#fdba74", inputBorder: "#fb923c", inputBg: "#fff7ed", totalLabel: "#fdba74", totalMax: "#f1f5f9", totalCellA: "#fed7aa", totalCellB: "#fdba74" }}
+                theme={{ label: "#FBE4BC", labelText: "#633806", group: "#F5CD86", dataA: "#FEFAF1", dataB: "#FAEEDA", border: "#EF9F27", inputBorder: "#EF9F27", inputBg: "#FAEEDA", totalLabel: "#F5CD86", totalMax: "#f1f5f9", totalCellA: "#FBE4BC", totalCellB: "#F5CD86" }}
                 totalLabel="총점 (숙제)" totalMax={30}
               />
 
               <tr>
-                <td style={{ ...rowLabelStyle, background: "#fca5a5" }}>Teacher's Comments</td>
+                <td style={{ ...rowLabelStyle, background: "#F7C7D8", color: "#7A1F3D", verticalAlign: "middle", whiteSpace: "normal" }}>Teacher's Comments</td>
                 <td style={{ ...maxColStyle, background: "#f1f5f9" }}>-</td>
                 {students.map((s, i) => (
-                  <td key={s.id} style={{ padding: 3, background: i % 2 === 0 ? "#fef9c3" : "#fef3c7", borderRight: i === students.length - 1 ? "none" : "2px solid #fbbf24" }}>
+                  <td key={s.id} style={{ padding: 4, background: i % 2 === 0 ? "#FDF4F7" : "#FBEAF0", borderRight: i === students.length - 1 ? "none" : "2px solid #ED93B1" }}>
                     <textarea
                       value={s.comment}
                       onChange={(e) => updateStudentField(i, "comment", e.target.value.slice(0, COMMENT_MAX_LEN))}
@@ -1274,9 +1989,9 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
                       placeholder="코멘트 입력"
                       rows={9}
                       maxLength={COMMENT_MAX_LEN}
-                      style={{ width: COMMENT_ROW_W, maxWidth: COMMENT_ROW_W, boxSizing: "border-box", padding: "6px 6px", fontSize: 11, lineHeight: 1.4, border: "1px solid #fbbf24", borderRadius: 4, background: "#fffbeb", resize: "vertical", fontFamily: "inherit" }}
+                      style={{ width: "100%", minWidth: 0, boxSizing: "border-box", padding: "8px 8px", fontSize: 13, lineHeight: 1.5, border: "1px solid #ED93B1", borderRadius: 8, background: "#fff", color: "#111827", resize: "vertical", fontFamily: "inherit" }}
                     />
-                    <div style={{ width: COMMENT_ROW_W, textAlign: "right", fontSize: 9, color: (s.comment || "").length >= COMMENT_MAX_LEN ? "#dc2626" : "#9ca3af", marginTop: 2 }}>
+                    <div style={{ textAlign: "right", fontSize: 10, color: (s.comment || "").length >= COMMENT_MAX_LEN ? "#dc2626" : "#9ca3af", marginTop: 3 }}>
                       {(s.comment || "").length} / {COMMENT_MAX_LEN}자
                     </div>
                   </td>
@@ -1288,7 +2003,17 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
 
         <div style={{ padding: "18px 26px", display: "flex", justifyContent: "space-between", borderTop: "1px solid #f1f5f9" }}>
           <button onClick={onBack} style={secondaryBtn}>← 이전</button>
-          <button onClick={onNext} style={primaryBtn}>확인 → 최종 성적표 보기</button>
+          <button
+            onClick={() => {
+              const incomplete = findIncompleteStudents(students, partDefs);
+              if (incomplete.length > 0) {
+                alert("성적 입력이 완료되지 않았습니다.");
+                return;
+              }
+              onNext();
+            }}
+            style={primaryBtn}
+          >확인 → 최종 성적표 보기</button>
         </div>
       </div>
     </div>
@@ -1298,7 +2023,7 @@ function Step2({ form, partDefs, studentCount, updateStudentCount, students, upd
 function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle, theme, totalLabel, totalMax, onNav }) {
   const rowLabelStyle = {
     position: "sticky", left: 0, background: theme.label, zIndex: 2,
-    padding: "7px 10px", fontSize: 12, fontWeight: 700, color: theme.labelText,
+    padding: "8px 10px", fontSize: 14, fontWeight: 700, color: theme.labelText,
     borderRight: "2px solid #fff", borderBottom: `1px solid ${theme.border}`,
     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left",
   };
@@ -1314,8 +2039,8 @@ function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle
     borderRight: isLast ? "none" : `2px solid ${theme.border}`,
   });
   const cellInput = {
-    width: "100%", maxWidth: 56, textAlign: "center", padding: "5px 2px", fontSize: 12,
-    border: `1px solid ${theme.inputBorder}`, borderRadius: 4, background: theme.inputBg, boxSizing: "border-box",
+    width: "100%", minWidth: 0, maxWidth: 56, height: 36, textAlign: "center", padding: "5px 2px", fontSize: 15, fontWeight: 600,
+    border: `1px solid ${theme.inputBorder}`, borderRadius: 6, background: theme.inputBg, color: theme.labelText, boxSizing: "border-box",
   };
 
   return (
@@ -1338,6 +2063,8 @@ function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle
                 onFocus={(e) => e.target.select()}
                 onKeyDown={(e) => onNav(e, d.key, i)}
                 data-field={d.key} data-col={i}
+                placeholder="입력"
+                className="score-input"
                 style={cellInput}
               />
             </td>
@@ -1353,7 +2080,7 @@ function SectionRows({ title, defs, students, update, maxColStyle, groupMaxStyle
             <td
               key={s.id}
               style={{
-                padding: "6px 3px", textAlign: "center", fontWeight: 800, fontSize: 13, color: theme.labelText,
+                padding: "8px 3px", textAlign: "center", fontWeight: 700, fontSize: 20, color: theme.labelText,
                 background: i % 2 === 0 ? theme.totalCellA : theme.totalCellB,
                 borderRight: i === students.length - 1 ? "none" : `2px solid ${theme.border}`,
               }}
@@ -1393,32 +2120,133 @@ function computeReportData(student, partDefs, totalMax, classAverages) {
 
 function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex, setReportIndex, onBack }) {
   const [printAll, setPrintAll] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfAllBusy, setPdfAllBusy] = useState(false);
+  const [pdfAllRendering, setPdfAllRendering] = useState(false);
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printAllBusy, setPrintAllBusy] = useState(false);
+  const cardRef = React.useRef(null);
   const student = students[reportIndex];
   const { totalGot, totalPct, radarData } = computeReportData(student, partDefs, totalMax, classAverages);
 
-  useEffect(() => {
-    if (!printAll) return;
-    let raf1, raf2;
-    const t = setTimeout(() => {
-      raf1 = requestAnimationFrame(() => {
-        raf2 = requestAnimationFrame(() => window.print());
-      });
-    }, 150);
-    const revert = () => setPrintAll(false);
-    window.addEventListener("afterprint", revert, { once: true });
-    return () => {
-      clearTimeout(t);
-      if (raf1) cancelAnimationFrame(raf1);
-      if (raf2) cancelAnimationFrame(raf2);
-      window.removeEventListener("afterprint", revert);
-    };
-  }, [printAll]);
+  // 인쇄 (현재 보고 있는 학생 1명) - 이미지 다운로드와 동일한 캡처 결과를 그대로 인쇄
+  async function handlePrintSingle() {
+    if (!cardRef.current || printBusy) return;
+    setPrintBusy(true);
+    const el = cardRef.current;
+    el.classList.add("pdf-capture-mode");
+    try {
+      const cardEl = el.querySelector(".report-card") || el;
+      const canvas = await captureReportCardCanvas(cardEl, 1060);
+      await printImagesViaIframe([{ url: canvas.toDataURL("image/png"), widthPx: canvas.width / 3, heightPx: canvas.height / 3 }]);
+    } catch (err) {
+      alert("인쇄 준비 중 문제가 발생했습니다: " + (err?.message || err));
+    } finally {
+      el.classList.remove("pdf-capture-mode");
+      setPrintBusy(false);
+    }
+  }
+
+  // 전체 인쇄 (학생별 캡처 이미지를 페이지별로 이어붙여 인쇄)
+  async function handlePrintAll() {
+    if (printAllBusy) return;
+    setPrintAllBusy(true);
+    setPrintAll(true);
+    try {
+      const delay = 400 + students.length * 40;
+      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const cards = Array.from(document.querySelectorAll(".all-reports-container .report-card"));
+      if (!cards.length) throw new Error("성적표를 찾을 수 없습니다.");
+
+      const items = [];
+      for (let i = 0; i < cards.length; i++) {
+        const el = cards[i];
+        const wrap = el.parentElement || el;
+        wrap.classList.add("pdf-capture-mode");
+        // eslint-disable-next-line no-await-in-loop
+        const canvas = await captureReportCardCanvas(el, 1060);
+        wrap.classList.remove("pdf-capture-mode");
+        items.push({ url: canvas.toDataURL("image/png"), widthPx: canvas.width / 3, heightPx: canvas.height / 3 });
+      }
+
+      await printImagesViaIframe(items);
+    } catch (err) {
+      alert("전체 인쇄 준비 중 문제가 발생했습니다: " + (err?.message || err));
+    } finally {
+      setPrintAll(false);
+      setPrintAllBusy(false);
+    }
+  }
+
+  // 개별 이미지 다운로드 (현재 보고 있는 학생 1명)
+  async function handleImageDownload() {
+    if (!cardRef.current || pdfBusy) return;
+    setPdfBusy(true);
+    const el = cardRef.current;
+    el.classList.add("pdf-capture-mode");
+    try {
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const filename = buildReportFilename(form, student.name || `학생${reportIndex + 1}`, "png");
+      await downloadReportAsImage(el, filename);
+    } catch (err) {
+      alert("이미지 생성 중 문제가 발생했습니다: " + (err?.message || err));
+    } finally {
+      el.classList.remove("pdf-capture-mode");
+      setPdfBusy(false);
+    }
+  }
+
+  // 전체 이미지 다운로드 (학생별 이미지를 zip으로 묶어서 한 번에 다운로드)
+  async function handleImageAllDownload() {
+    if (pdfAllBusy) return;
+    setPdfAllBusy(true);
+    setPdfAllRendering(true);
+    try {
+      // all-reports-container가 화면에 렌더링될 시간을 학생 수에 비례해서 확보
+      const delay = 400 + students.length * 40;
+      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const cards = Array.from(document.querySelectorAll(".all-reports-container .report-card"));
+      if (!cards.length) throw new Error("성적표를 찾을 수 없습니다.");
+
+      const zip = new JSZip();
+      for (let i = 0; i < cards.length; i++) {
+        const el = cards[i];
+        const wrap = el.parentElement || el; // CSS가 .pdf-capture-mode .report-card (자손 선택자)라서 부모에 클래스를 걸어야 함
+        wrap.classList.add("pdf-capture-mode");
+        // eslint-disable-next-line no-await-in-loop
+        const canvas = await captureReportCardCanvas(el);
+        wrap.classList.remove("pdf-capture-mode");
+        const dataUrl = canvas.toDataURL("image/png");
+        const base64 = dataUrl.split(",")[1];
+        const st = students[i];
+        const imgFilename = buildReportFilename(form, st.name || `학생${i + 1}`, "png");
+        zip.file(imgFilename, base64, { base64: true });
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const zipFilename = buildReportFilename(form, "전체", "zip");
+      downloadFile(zipUrl, zipFilename);
+      URL.revokeObjectURL(zipUrl);
+    } catch (err) {
+      alert("전체 이미지 생성 중 문제가 발생했습니다: " + (err?.message || err));
+    } finally {
+      setPdfAllRendering(false);
+      setPdfAllBusy(false);
+    }
+  }
+
+  const showAllContainer = printAll || pdfAllRendering;
 
   return (
     <div className="step3-wrapper" style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px 60px" }}>
-      <div className="print-hide" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14 }}>
+      <div className="print-hide step3-toolbar" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <button onClick={onBack} style={secondaryBtn}>← 입력표 수정</button>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="step3-nav" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             disabled={reportIndex === 0}
             onClick={() => setReportIndex((i) => Math.max(0, i - 1))}
@@ -1439,20 +2267,21 @@ function Step3({ form, partDefs, totalMax, students, classAverages, reportIndex,
             style={{ ...stepperBtn, width: 34, height: 34, opacity: reportIndex === students.length - 1 ? 0.4 : 1 }}
           >›</button>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => exportStudentsToExcel(form, students, partDefs, "_성적결과")} style={secondaryBtn}>📊 엑셀 다운로드</button>
-          <button onClick={() => setPrintAll(true)} style={secondaryBtn}>🖨 전체 인쇄</button>
-          <button onClick={() => window.print()} style={primaryBtn}>🖨 인쇄</button>
+        <div className="step3-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={handleImageDownload} disabled={pdfBusy} style={{ ...secondaryBtn, opacity: pdfBusy ? 0.6 : 1 }}>{pdfBusy ? "생성 중…" : "🖼 성적표 다운로드 (개별)"}</button>
+          <button onClick={handleImageAllDownload} disabled={pdfAllBusy} style={{ ...secondaryBtn, opacity: pdfAllBusy ? 0.6 : 1 }}>{pdfAllBusy ? "생성 중…" : "🖼 성적표 다운로드 (전체)"}</button>
+          <button onClick={handlePrintAll} disabled={printAllBusy} style={{ ...secondaryBtn, opacity: printAllBusy ? 0.6 : 1 }}>{printAllBusy ? "준비 중…" : "🖨 성적표 인쇄 (전체)"}</button>
+          <button onClick={handlePrintSingle} disabled={printBusy} style={{ ...primaryBtn, opacity: printBusy ? 0.6 : 1 }}>{printBusy ? "준비 중…" : "🖨 성적표 인쇄 (개별)"}</button>
         </div>
       </div>
 
-      {!printAll && (
-        <div className="single-report">
+      {!showAllContainer && (
+        <div className="single-report" ref={cardRef}>
           <ReportCard form={form} partDefs={partDefs} totalMax={totalMax} student={student} totalGot={totalGot} totalPct={totalPct} radarData={radarData} classAverages={classAverages} />
         </div>
       )}
 
-      {printAll && (
+      {showAllContainer && (
         <div className="all-reports-container">
           {students.map((st) => {
             const r = computeReportData(st, partDefs, totalMax, classAverages);
@@ -1472,11 +2301,11 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
   return (
     <div className="report-card" style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}>
       <div className="report-header" style={{ padding: "20px 24px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="report-logo-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src={parallaxLogo} alt="GnB Parallax" style={{ height: 30, width: "auto", display: "block" }} />
           <span style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>Monthly Report</span>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div className="signature-row" style={{ display: "flex", gap: 10 }}>
           <SignatureBox label="Director's Signature" />
           <SignatureBox label="Parents' Signature" />
         </div>
@@ -1484,7 +2313,7 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
 
       <InfoRow form={form} student={student} />
 
-      <div className="report-section" style={{ margin: "14px 24px 0", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 16px", fontWeight: 800, color: "#78350f", fontSize: 14 }}>
+      <div className="report-section textbook-banner" style={{ margin: "14px 24px 0", background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 16px", fontWeight: 800, color: "#78350f", fontSize: 16 }}>
         {textbookLabel(form)}
       </div>
 
@@ -1506,11 +2335,11 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
                 <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="득점" fill="#C68A1A" radius={[3, 3, 0, 0]}>
-                  <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#8a5f10" }} />
+                <Bar dataKey="득점" fill="#F97316" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#B45309" }} />
                 </Bar>
-                <Bar dataKey="반평균" fill="#6B3B5E" radius={[3, 3, 0, 0]}>
-                  <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#4a2941" }} />
+                <Bar dataKey="반평균" fill="#FACC15" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#854D0E" }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -1521,9 +2350,9 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
                 <PolarGrid />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                 <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
-                <Radar name="득점" dataKey="득점" stroke="#C68A1A" fill="#C68A1A" fillOpacity={0.3} />
-                <Radar name="반평균" dataKey="반평균" stroke="#6B3B5E" fill="#6B3B5E" fillOpacity={0.18} />
-                <Radar name="기준점수" dataKey="기준" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.05} strokeDasharray="4 3" />
+                <Radar name="득점" dataKey="득점" stroke="#F97316" fill="#F97316" fillOpacity={0.3} isAnimationActive={false} />
+                <Radar name="반평균" dataKey="반평균" stroke="#CA8A04" fill="#FACC15" fillOpacity={0.25} isAnimationActive={false} />
+                <Radar name="기준점수" dataKey="기준" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.05} strokeDasharray="4 3" isAnimationActive={false} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
               </RadarChart>
             </ResponsiveContainer>
@@ -1538,7 +2367,7 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
 
       <div className="report-section" style={{ margin: "16px 24px 0" }}>
         <SectionHeader icon="📝" title="Teacher's Comments" />
-        <div className="comments-box" style={{ marginTop: 6, minHeight: 70, border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 14px", fontSize: 13, color: "#111827", background: "#fafafa" }}>
+        <div className="comments-box" style={{ marginTop: 6, minHeight: 70, border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 14px", fontSize: 13, color: "#111827", background: "#fafafa", overflowWrap: "break-word", wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
           {student.comment || <span style={{ color: "#9ca3af" }}>입력된 코멘트가 없습니다.</span>}
         </div>
       </div>
@@ -1553,7 +2382,7 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
 
 function SignatureBox({ label }) {
   return (
-    <div style={{ width: 90, textAlign: "center" }}>
+    <div className="signature-box" style={{ width: 90, textAlign: "center" }}>
       <div style={{ height: 36, border: "1px solid #d1d5db", borderRadius: 6, background: "#f9fafb" }} />
       <div style={{ fontSize: 9, color: "#6b7280", marginTop: 3 }}>{label}</div>
     </div>
@@ -1561,14 +2390,27 @@ function SignatureBox({ label }) {
 }
 
 function InfoRow({ form, student }) {
-  const cell = { padding: "8px 14px", fontSize: 12, borderRight: "1px solid #e5e7eb" };
-  const label = { fontWeight: 700, color: "#6b7280", marginRight: 6 };
+  const cellBase = { padding: "8px 16px", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", justifyContent: "center" };
+  const labelStyle = { fontWeight: 700, color: "#9ca3af", fontSize: 10 };
+  const valueStyle = { fontSize: 14, fontWeight: 600, color: "#111827" };
   return (
-    <div style={{ margin: "6px 24px 0", border: "1px solid #e5e7eb", borderRadius: 8, display: "flex", flexWrap: "wrap", overflow: "hidden" }}>
-      <div style={cell}><span style={label}>Date</span>{form.dateStart} ~ {form.dateEnd}</div>
-      <div style={cell}><span style={label}>Teacher's Name</span>{form.teacher}</div>
-      <div style={cell}><span style={label}>Class</span>{form.className}</div>
-      <div style={{ ...cell, borderRight: "none" }}><span style={label}>Student's Name</span>{student.name || "-"}</div>
+    <div className="info-row" style={{ margin: "6px 24px 0", border: "1px solid #e5e7eb", borderRadius: 8, display: "flex", overflow: "hidden" }}>
+      <div style={{ ...cellBase, flex: 1.5 }}>
+        <span style={labelStyle}>Date</span>
+        <span style={valueStyle}>{form.dateStart} ~ {form.dateEnd}</span>
+      </div>
+      <div style={{ ...cellBase, flex: 0.9 }}>
+        <span style={labelStyle}>Teacher's Name</span>
+        <span style={valueStyle}>{form.teacher}</span>
+      </div>
+      <div style={{ ...cellBase, flex: 0.9 }}>
+        <span style={labelStyle}>Class</span>
+        <span style={valueStyle}>{form.className}</span>
+      </div>
+      <div style={{ ...cellBase, flex: 0.7, borderRight: "none" }}>
+        <span style={labelStyle}>Student's Name</span>
+        <span style={valueStyle}>{student.name || "-"}</span>
+      </div>
     </div>
   );
 }
@@ -1626,12 +2468,12 @@ function ScoreTable({ partDefs, totalMax, student, totalGot, totalPct }) {
 
 function PerformanceTable({ student }) {
   const groups = [
-    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#0F6674" },
-    { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#3B4C9E" },
-    { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#D4A017" },
+    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#10B981" },
+    { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#2563EB" },
+    { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#6B5FA8" },
   ];
   const td = { padding: "7px 8px", fontSize: 12, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: "center" };
-  const labelTd = { ...td, whiteSpace: "nowrap" };
+  const labelTd = { ...td, whiteSpace: "normal" };
   const groupDivider = "2px solid #111827";
   return (
     <table className="perf-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, tableLayout: "fixed" }}>
@@ -1656,15 +2498,19 @@ function PerformanceTable({ student }) {
                     style={{ ...td, fontWeight: 700, textAlign: "center", verticalAlign: "middle", background: "#f3f4f6", borderTop: topBorder, lineHeight: 1.4 }}
                     rowSpan={g.defs.length}
                   >
-                    <div>{g.titleKr}</div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", letterSpacing: 0.3 }}>{g.titleEn}</div>
+                    {g.titleKr}
                   </td>
                 )}
-                <td style={{ ...labelTd, borderTop: topBorder }}>{d.label} {d.kr && `(${d.kr})`}</td>
+                <td className="perf-label-cell" style={{ ...labelTd, borderTop: topBorder, lineHeight: 1.3 }}>
+                  <div className="perf-label-en">{d.label}</div>
+                  {d.kr && <div className="perf-label-kr" style={{ color: "#6b7280" }}>({d.kr})</div>}
+                </td>
                 <td style={{ ...td, borderTop: topBorder }}>
-                  <div style={{ background: "#f1f5f9", borderRadius: 6, height: 14, position: "relative" }}>
-                    <div style={{ width: `${Math.min(100, (v / 10) * 100)}%`, background: g.color, height: 14, borderRadius: 6 }} />
-                    <span style={{ position: "absolute", right: 6, top: -1, fontSize: 10, fontWeight: 700, color: "#374151" }}>{v}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, background: "#f1f5f9", borderRadius: 6, height: 14 }}>
+                      <div style={{ width: `${Math.min(100, (v / 10) * 100)}%`, background: g.color, height: 14, borderRadius: 6 }} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: g.color, minWidth: 16, textAlign: "right" }}>{v}</span>
                   </div>
                 </td>
                 <td style={{ ...td, borderTop: topBorder }}>
@@ -1684,7 +2530,7 @@ function PerformanceTable({ student }) {
 
 function SectionHeader({ icon, title }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "2px solid #111827", paddingBottom: 6 }}>
+    <div className="section-header" style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "2px solid #111827", paddingBottom: 6 }}>
       <span>{icon}</span>
       <span style={{ fontWeight: 800, fontSize: 15, color: "#111827" }}>{title}</span>
     </div>
