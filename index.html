@@ -211,6 +211,16 @@
         .landing-card-desc { font-size: 15px !important; margin: 8px 0 18px !important; }
         .landing-card-cta { font-size: 17px !important; }
       }
+
+      /* ---- 최종 성적표 표 PC 전용 확대 (화면에서 보는 용도만, 인쇄/이미지 저장 캡처 크기는 절대 변경 안 됨) ---- */
+      @media screen and (min-width: 641px) {
+        .score-table th, .perf-table th { font-size: 15px !important; padding: 10px 10px !important; }
+        .score-table td { font-size: 15px !important; padding: 10px 10px !important; }
+        .perf-table td:not(.perf-label-cell) { font-size: 15px !important; }
+        .perf-label-cell { display: flex !important; align-items: baseline !important; justify-content: center !important; gap: 5px !important; white-space: nowrap !important; }
+        .perf-label-en { font-size: 15px !important; }
+        .perf-label-kr { font-size: 13px !important; }
+      }
     </style>
   </head>
   <body>

@@ -553,11 +553,12 @@ function printImagesViaIframe(items) {
   return new Promise((resolve) => {
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
+    iframe.style.left = "-10000px";
+    iframe.style.top = "0";
+    iframe.style.width = "800px";
+    iframe.style.height = "1000px";
     iframe.style.border = "0";
+    iframe.style.visibility = "hidden";
     document.body.appendChild(iframe);
 
     const pxToMm = (px) => (px / 96) * 25.4;
@@ -618,12 +619,12 @@ function printImagesViaIframe(items) {
 }
 
 const GRADE_COLORS = {
-  "Perfect": { color: "#16a34a", bg: "#dcfce7" },
-  "Excellent": { color: "#0891b2", bg: "#cffafe" },
-  "Very Good": { color: "#2563eb", bg: "#dbeafe" },
-  "Good": { color: "#7c3aed", bg: "#ede9fe" },
-  "Not Bad": { color: "#ea580c", bg: "#ffedd5" },
-  "Practice More": { color: "#e11d48", bg: "#ffe4e6" },
+  "Perfect": { color: "#ffffff", bg: "#15803D" },
+  "Excellent": { color: "#ffffff", bg: "#65A30D" },
+  "Very Good": { color: "#ffffff", bg: "#EAB308" },
+  "Good": { color: "#ffffff", bg: "#F59E0B" },
+  "Not Bad": { color: "#ffffff", bg: "#EA580C" },
+  "Practice More": { color: "#ffffff", bg: "#DC2626" },
 };
 function grade100(pct) {
   let label;
@@ -2334,11 +2335,11 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
                 <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="득점" fill="#C68A1A" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                  <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#8a5f10" }} />
+                <Bar dataKey="득점" fill="#F97316" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="득점" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#B45309" }} />
                 </Bar>
-                <Bar dataKey="반평균" fill="#6B3B5E" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                  <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#4a2941" }} />
+                <Bar dataKey="반평균" fill="#FACC15" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="반평균" position="top" style={{ fontSize: 10, fontWeight: 700, fill: "#854D0E" }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -2349,8 +2350,8 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
                 <PolarGrid />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
                 <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 8 }} />
-                <Radar name="득점" dataKey="득점" stroke="#C68A1A" fill="#C68A1A" fillOpacity={0.3} isAnimationActive={false} />
-                <Radar name="반평균" dataKey="반평균" stroke="#6B3B5E" fill="#6B3B5E" fillOpacity={0.18} isAnimationActive={false} />
+                <Radar name="득점" dataKey="득점" stroke="#F97316" fill="#F97316" fillOpacity={0.3} isAnimationActive={false} />
+                <Radar name="반평균" dataKey="반평균" stroke="#CA8A04" fill="#FACC15" fillOpacity={0.25} isAnimationActive={false} />
                 <Radar name="기준점수" dataKey="기준" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.05} strokeDasharray="4 3" isAnimationActive={false} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
               </RadarChart>
@@ -2467,9 +2468,9 @@ function ScoreTable({ partDefs, totalMax, student, totalGot, totalPct }) {
 
 function PerformanceTable({ student }) {
   const groups = [
-    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#0F6674" },
-    { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#3B4C9E" },
-    { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#D4A017" },
+    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#10B981" },
+    { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#2563EB" },
+    { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#6B5FA8" },
   ];
   const td = { padding: "7px 8px", fontSize: 12, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: "center" };
   const labelTd = { ...td, whiteSpace: "normal" };
