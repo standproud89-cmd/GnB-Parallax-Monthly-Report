@@ -236,10 +236,10 @@ const XLS_COLORS = {
 };
 // Step2 화면과 동일한 섹션별 색상 테마 (엑셀에도 동일하게 적용)
 const XLS_THEME = {
-  test: { label: "FFFECACA", labelText: "FF7F1D1D", section: "FFFCA5A5" },
-  participation: { label: "FFBFDBFE", labelText: "FF1E3A8A", section: "FF93C5FD" },
-  behavior: { label: "FFDDD6FE", labelText: "FF4C1D95", section: "FFC4B5FD" },
-  homework: { label: "FFFED7AA", labelText: "FF7C2D12", section: "FFFDBA74" },
+  test: { label: "FFFAECE7", labelText: "FF712B13", section: "FFFAECE7" },
+  participation: { label: "FFCBEEE0", labelText: "FF085041", section: "FFE1F5EE" },
+  behavior: { label: "FFDDDAFC", labelText: "FF26215C", section: "FFEEEDFE" },
+  homework: { label: "FFFBE4BC", labelText: "FF633806", section: "FFFAEEDA" },
 };
 function xlsFill(argb) {
   return { type: "pattern", pattern: "solid", fgColor: { argb } };
@@ -2472,17 +2472,17 @@ function PerformanceTable({ student }) {
     { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#2563EB" },
     { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#6B5FA8" },
   ];
-  const td = { padding: "7px 8px", fontSize: 12, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: "center" };
+  const td = { padding: "8px 10px", fontSize: 13, borderBottom: "1px solid #f1f5f9", verticalAlign: "middle", textAlign: "center" };
   const labelTd = { ...td, whiteSpace: "normal" };
-  const groupDivider = "2px solid #111827";
+  const groupDivider = "1px solid #111827";
   return (
     <table className="perf-table" style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, tableLayout: "fixed" }}>
       <thead>
-        <tr style={{ background: "#1f2937" }}>
-          <th style={{ ...td, color: "#fff", width: "13%" }}>항목</th>
-          <th style={{ ...td, color: "#fff", width: "33%" }}>세부항목</th>
-          <th style={{ ...td, color: "#fff", width: "32%" }}>성취도</th>
-          <th style={{ ...td, color: "#fff", width: "22%" }}>평가</th>
+        <tr style={{ background: "#111827" }}>
+          <th style={{ ...td, fontSize: 12, color: "#fff", width: "13%" }}>항목</th>
+          <th style={{ ...td, fontSize: 12, color: "#fff", width: "33%" }}>세부항목</th>
+          <th style={{ ...td, fontSize: 12, color: "#fff", width: "32%" }}>성취도</th>
+          <th style={{ ...td, fontSize: 12, color: "#fff", width: "22%" }}>평가</th>
         </tr>
       </thead>
       <tbody>
