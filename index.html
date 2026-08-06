@@ -50,9 +50,11 @@
 
         .score-table td, .score-table th { padding: 2px 6px !important; font-size: 9.5px !important; }
         .perf-table td, .perf-table th { padding: 1px 6px !important; font-size: 8.5px !important; }
-        .perf-label-cell { line-height: 1.15 !important; }
-        .perf-label-en { font-size: 8.5px !important; }
-        .perf-label-kr { font-size: 7.5px !important; }
+        .perf-table td:not(.perf-label-cell):not(.perf-group-label) { padding: 1px 6px !important; font-size: 8.5px !important; }
+        .perf-group-label { padding: 1px 6px !important; font-size: 8.5px !important; }
+        .perf-label-cell { line-height: 1.15 !important; display: table-cell !important; white-space: normal !important; }
+        .perf-label-en { font-size: 8.5px !important; display: block !important; }
+        .perf-label-kr { font-size: 7.5px !important; display: block !important; margin-left: 0 !important; }
         .grade-badge { font-size: 9px !important; width: 76px !important; padding: 2px 0 !important; }
 
         .chart-box, .radar-box { height: 183px !important; padding: 4px !important; }
@@ -99,9 +101,11 @@
       .pdf-capture-mode .report-footer { margin: 4px 24px 4px !important; padding-top: 4px !important; font-size: 9.5px !important; }
       .pdf-capture-mode .score-table td, .pdf-capture-mode .score-table th { padding: 2px 6px !important; font-size: 9.5px !important; }
       .pdf-capture-mode .perf-table td, .pdf-capture-mode .perf-table th { padding: 1px 6px !important; font-size: 8.5px !important; }
-      .pdf-capture-mode .perf-label-cell { line-height: 1.15 !important; }
-      .pdf-capture-mode .perf-label-en { font-size: 8.5px !important; }
-      .pdf-capture-mode .perf-label-kr { font-size: 7.5px !important; }
+      .pdf-capture-mode .perf-table td:not(.perf-label-cell):not(.perf-group-label) { padding: 1px 6px !important; font-size: 8.5px !important; }
+      .pdf-capture-mode .perf-group-label { padding: 1px 6px !important; font-size: 8.5px !important; }
+      .pdf-capture-mode .perf-label-cell { line-height: 1.15 !important; display: table-cell !important; white-space: normal !important; }
+      .pdf-capture-mode .perf-label-en { font-size: 8.5px !important; display: block !important; }
+      .pdf-capture-mode .perf-label-kr { font-size: 7.5px !important; display: block !important; margin-left: 0 !important; }
       .pdf-capture-mode .grade-badge { font-size: 9px !important; width: 76px !important; padding: 2px 0 !important; }
       .pdf-capture-mode .chart-box, .pdf-capture-mode .radar-box { height: 183px !important; padding: 4px !important; }
       .pdf-capture-mode .comments-box {
@@ -216,10 +220,11 @@
       @media screen and (min-width: 641px) {
         .score-table th, .perf-table th { font-size: 15px !important; padding: 10px 10px !important; }
         .score-table td { font-size: 15px !important; padding: 10px 10px !important; }
-        .perf-table td:not(.perf-label-cell) { font-size: 15px !important; }
-        .perf-label-cell { display: flex !important; align-items: baseline !important; justify-content: center !important; gap: 5px !important; white-space: nowrap !important; }
-        .perf-label-en { font-size: 15px !important; }
-        .perf-label-kr { font-size: 13px !important; }
+        .perf-group-label { font-size: 14px !important; padding: 8px 8px !important; }
+        .perf-table td:not(.perf-label-cell):not(.perf-group-label) { font-size: 14px !important; padding: 9px 8px !important; }
+        .perf-label-cell { white-space: nowrap !important; padding: 9px 8px !important; }
+        .perf-label-en { display: inline !important; font-size: 14px !important; }
+        .perf-label-kr { display: inline !important; font-size: 12px !important; margin-left: 5px !important; }
       }
     </style>
   </head>

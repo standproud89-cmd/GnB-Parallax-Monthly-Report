@@ -2495,6 +2495,7 @@ function PerformanceTable({ student }) {
               <tr key={d.key}>
                 {di === 0 && (
                   <td
+                    className="perf-group-label"
                     style={{ ...td, fontWeight: 700, textAlign: "center", verticalAlign: "middle", background: "#f3f4f6", borderTop: topBorder, lineHeight: 1.4 }}
                     rowSpan={g.defs.length}
                   >
