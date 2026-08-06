@@ -2468,7 +2468,7 @@ function ScoreTable({ partDefs, totalMax, student, totalGot, totalPct }) {
 
 function PerformanceTable({ student }) {
   const groups = [
-    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#10B981" },
+    { titleKr: "참여도", titleEn: "Participation", defs: PARTICIPATION_DEFS, color: "#15803D" },
     { titleKr: "태도", titleEn: "Behavior", defs: BEHAVIOR_DEFS, color: "#2563EB" },
     { titleKr: "숙제", titleEn: "Homework", defs: HOMEWORK_DEFS, color: "#6B5FA8" },
   ];
