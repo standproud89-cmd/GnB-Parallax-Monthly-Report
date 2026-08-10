@@ -817,6 +817,7 @@ export default function App() {
 // ---------- 대문 (Final Test 음원 듣기 / 성적표 입력) ----------
 function Landing({ onSelect }) {
   const [hover, setHover] = useState(null);
+  const isMobile = useIsMobile();
 
   const CARDS = [
     { key: "audio", icon: "🎧", title: "음원 듣기", desc: "Final Test 음원을 재생합니다", accent: "#D85A30", chipBg: "#FAECE7", badgeText: "#712B13" },
@@ -837,31 +838,35 @@ function Landing({ onSelect }) {
         </div>
 
         <div className="landing-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          {CARDS.map((c) => (
-            <button
-              key={c.key}
-              onClick={() => onSelect(c.key)}
-              onMouseEnter={() => setHover(c.key)}
-              onMouseLeave={() => setHover(null)}
-              className="landing-card"
-              style={{
-                position: "relative", background: "#fff", borderRadius: 18,
-                padding: "26px 20px 20px", textAlign: "center", cursor: "pointer",
-                border: `2px solid ${c.accent}`,
-                boxShadow: hover === c.key ? "0 16px 32px rgba(17,24,39,0.10)" : "0 2px 8px rgba(17,24,39,0.05)",
-                transform: hover === c.key ? "translateY(-3px)" : "translateY(0)",
-                transition: "box-shadow .2s ease, transform .2s ease",
-              }}
-            >
-              <div className="landing-card-icon" style={{ width: 56, height: 56, borderRadius: 16, background: c.chipBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 14, marginLeft: "auto", marginRight: "auto" }}>
-                {c.icon}
-              </div>
-              <span className="landing-card-badge" style={{ display: "inline-block", background: c.chipBg, color: c.badgeText, fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 6, marginBottom: 9 }}>FINAL TEST</span>
-              <div className="landing-card-title" style={{ fontSize: 19, fontWeight: 800, color: "#111827" }}>{c.title}</div>
-              <div className="landing-card-desc" style={{ fontSize: 12, color: "#9ca3af", margin: "5px 0 14px" }}>{c.desc}</div>
-              <div className="landing-card-cta" style={{ fontSize: 13, fontWeight: 800, color: c.accent }}>시작하기 →</div>
-            </button>
-          ))}
+          {CARDS.map((c) => {
+            // PC에서만 마우스 호버 시 카드가 강조색으로 가득 차는 효과 적용 (모바일은 흰 배경 그대로 유지)
+            const filled = !isMobile && hover === c.key;
+            return (
+              <button
+                key={c.key}
+                onClick={() => onSelect(c.key)}
+                onMouseEnter={() => setHover(c.key)}
+                onMouseLeave={() => setHover(null)}
+                className="landing-card"
+                style={{
+                  position: "relative", background: filled ? c.accent : "#fff", borderRadius: 18,
+                  padding: "26px 20px 20px", textAlign: "center", cursor: "pointer",
+                  border: `2px solid ${c.accent}`,
+                  boxShadow: filled ? `0 16px 32px ${c.accent}59` : "0 2px 8px rgba(17,24,39,0.05)",
+                  transform: filled ? "translateY(-3px)" : "translateY(0)",
+                  transition: "background .2s ease, box-shadow .2s ease, transform .2s ease",
+                }}
+              >
+                <div className="landing-card-icon" style={{ width: 56, height: 56, borderRadius: 16, background: filled ? "rgba(255,255,255,0.22)" : c.chipBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 14, marginLeft: "auto", marginRight: "auto", transition: "background .2s ease" }}>
+                  {c.icon}
+                </div>
+                <span className="landing-card-badge" style={{ display: "inline-block", background: filled ? "rgba(255,255,255,0.25)" : c.chipBg, color: filled ? "#fff" : c.badgeText, fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 6, marginBottom: 9, transition: "background .2s ease, color .2s ease" }}>FINAL TEST</span>
+                <div className="landing-card-title" style={{ fontSize: 19, fontWeight: 800, color: filled ? "#fff" : "#111827", transition: "color .2s ease" }}>{c.title}</div>
+                <div className="landing-card-desc" style={{ fontSize: 12, color: filled ? "rgba(255,255,255,0.85)" : "#9ca3af", margin: "5px 0 14px", transition: "color .2s ease" }}>{c.desc}</div>
+                <div className="landing-card-cta" style={{ fontSize: 13, fontWeight: 800, color: filled ? "#fff" : c.accent, transition: "color .2s ease" }}>시작하기 →</div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
