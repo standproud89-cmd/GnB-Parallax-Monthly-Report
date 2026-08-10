@@ -846,14 +846,14 @@ function Landing({ onSelect }) {
               className="landing-card"
               style={{
                 position: "relative", background: "#fff", borderRadius: 18,
-                padding: "26px 20px 20px", textAlign: "left", cursor: "pointer",
-                border: "1px solid #eef0f3", borderLeft: `4px solid ${c.accent}`,
+                padding: "26px 20px 20px", textAlign: "center", cursor: "pointer",
+                border: `2px solid ${c.accent}`,
                 boxShadow: hover === c.key ? "0 16px 32px rgba(17,24,39,0.10)" : "0 2px 8px rgba(17,24,39,0.05)",
                 transform: hover === c.key ? "translateY(-3px)" : "translateY(0)",
                 transition: "box-shadow .2s ease, transform .2s ease",
               }}
             >
-              <div className="landing-card-icon" style={{ width: 56, height: 56, borderRadius: 16, background: c.chipBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 14 }}>
+              <div className="landing-card-icon" style={{ width: 56, height: 56, borderRadius: 16, background: c.chipBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 14, marginLeft: "auto", marginRight: "auto" }}>
                 {c.icon}
               </div>
               <span className="landing-card-badge" style={{ display: "inline-block", background: c.chipBg, color: c.badgeText, fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: "3px 9px", borderRadius: 6, marginBottom: 9 }}>FINAL TEST</span>
