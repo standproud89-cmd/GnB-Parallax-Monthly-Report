@@ -1602,11 +1602,22 @@ function Step1({ form, setForm, onNext, onHome, editLocked, onUploadEdit }) {
         <button onClick={onHome} className="print-hide" style={{ ...secondaryBtn, marginBottom: 14 }}>← 처음으로</button>
       )}
       <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", overflow: "hidden" }}>
-        <div style={{ background: "linear-gradient(90deg,#1d4ed8,#db2777)", padding: "22px 28px" }}>
-          <div style={{ color: "#fff", fontSize: 12, letterSpacing: 2, opacity: 0.85 }}>GnB EDUCATION</div>
-          <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginTop: 4 }}>성적표 기본 정보 입력</div>
+        <div style={{ background: "#0F6E56", padding: "22px 28px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9FE1CB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1z" />
+              <rect x="5" y="5" width="14" height="16" rx="2" />
+              <line x1="8" y1="10" x2="16" y2="10" />
+              <line x1="8" y1="14" x2="16" y2="14" />
+              <line x1="8" y1="18" x2="13" y2="18" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ color: "#9FE1CB", fontSize: 12, letterSpacing: 2, fontWeight: 500 }}>GnB EDUCATION</div>
+            <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, marginTop: 4 }}>성적표 기본 정보 입력</div>
+          </div>
         </div>
-        <div style={{ padding: "28px" }}>
+        <div style={{ padding: "28px", borderLeft: "3px solid #0F6E56" }}>
           {editLocked && (
             <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#9a3412", marginBottom: 18 }}>
               📤 업로드한 엑셀 데이터를 불러왔습니다. 교재명·권은 데이터 구조상 변경할 수 없습니다.
@@ -1656,8 +1667,8 @@ function Step1({ form, setForm, onNext, onHome, editLocked, onUploadEdit }) {
               width: "100%", marginTop: 10, padding: "14px",
               borderRadius: 10, border: "none", fontSize: 15, fontWeight: 700,
               cursor: canProceed ? "pointer" : "not-allowed",
-              background: canProceed ? "#111827" : "#d1d5db",
-              color: "#fff",
+              background: canProceed ? "#0F6E56" : "#d1d5db",
+              color: canProceed ? "#E1F5EE" : "#fff",
             }}
           >
             확인 → 성적 입력표로 이동
