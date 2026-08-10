@@ -1231,7 +1231,7 @@ function AudioHome({ onHome }) {
 
 function AudioLevelPicker({ onPick, onHome }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
+    <div style={{ minHeight: "100vh", background: "#f3f4f6", "--level-accent": "#D85A30" }}>
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "30px 20px" }}>
         <button onClick={onHome} style={secondaryBtn}>← 처음으로</button>
         <div style={{ fontSize: 20, fontWeight: 800, margin: "18px 0 14px", color: "#111827" }}>Final Test 음원 듣기</div>
@@ -1276,9 +1276,9 @@ function AudioLevelPicker({ onPick, onHome }) {
 }
 
 // ---------- 답안지 보기 / 시험지 다운로드 (음원 듣기와 동일한 화면 구성) ----------
-function TextbookLevelPicker({ title, subtitle, onHome, onPick }) {
+function TextbookLevelPicker({ title, subtitle, onHome, onPick, accent }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
+    <div style={{ minHeight: "100vh", background: "#f3f4f6", "--level-accent": accent }}>
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "30px 20px" }}>
         <button onClick={onHome} className="print-hide" style={secondaryBtn}>← 처음으로</button>
         <div style={{ fontSize: 20, fontWeight: 800, margin: "18px 0 14px", color: "#111827" }}>{title}</div>
@@ -1329,6 +1329,7 @@ function AnswerHome({ onHome }) {
       <TextbookLevelPicker
         title="Final Test 답안지 보기"
         subtitle="답안지"
+        accent="#534AB7"
         onHome={onHome}
         onPick={(t, lv) => setViewing({ textbook: t, level: lv })}
       />
@@ -1348,6 +1349,7 @@ function ExamHome({ onHome }) {
     <TextbookLevelPicker
       title="Final Test 시험지 다운로드"
       subtitle="시험지"
+      accent="#854F0B"
       onHome={onHome}
       onPick={(t, lv) => {
         const original = EXAM_FILENAMES[t] && EXAM_FILENAMES[t][lv];

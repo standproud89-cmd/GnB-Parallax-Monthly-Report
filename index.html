@@ -216,6 +216,18 @@
         .landing-card-cta { font-size: 17px !important; }
       }
 
+      /* ---- 레벨 선택 숫자 박스 PC 전용 호버 효과 (음원 듣기/답안지 보기/시험지 다운로드 화면, 모바일은 제외) ---- */
+      @media screen and (min-width: 641px) {
+        .audio-level-box:not(:disabled):hover {
+          background: var(--level-accent, #111827) !important;
+          color: #fff !important;
+          border-color: var(--level-accent, #111827) !important;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 16px color-mix(in srgb, var(--level-accent, #111827) 35%, transparent);
+        }
+        .audio-level-box { transition: background .15s ease, color .15s ease, transform .15s ease, box-shadow .15s ease; }
+      }
+
       /* ---- 최종 성적표 표 PC 전용 확대 (화면에서 보는 용도만, 인쇄/이미지 저장 캡처 크기는 절대 변경 안 됨) ---- */
       @media screen and (min-width: 641px) {
         .score-table th, .perf-table th { font-size: 15px !important; padding: 10px 10px !important; }
