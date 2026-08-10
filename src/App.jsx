@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import html2canvas from "html2canvas";
 import JSZip from "jszip";
 import gplumLogo from "./assets/gplum-logo.png";
+import gnbEnglishLogo from "./assets/gnb-english-logo.png";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, LabelList
@@ -2325,8 +2326,8 @@ function ReportCard({ form, partDefs, totalMax, student, totalGot, totalPct, rad
     <div className="report-card" style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}>
       <div className="report-header" style={{ padding: "20px 24px 6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div className="report-logo-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <img src={gplumLogo} alt="Gplum" style={{ height: 30, width: "auto", display: "block" }} />
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>Monthly Report</span>
+          <img src={gnbEnglishLogo} alt="GnB English" style={{ height: 34, width: "auto", display: "block" }} />
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>Gplum Monthly Report</span>
         </div>
         <div className="signature-row" style={{ display: "flex", gap: 10 }}>
           <SignatureBox label="Director's Signature" />
