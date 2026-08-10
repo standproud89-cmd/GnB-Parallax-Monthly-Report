@@ -930,6 +930,7 @@ const AUDIO_LIBRARY = {
     1: ["Part 1_Vocabulary_7.mp3", "Part 1_Vocabulary_8.mp3", "Part 1_Vocabulary_9.mp3", "Part 2_Listening_13.mp3", "Part 2_Listening_14.mp3", "Part 2_Listening_15.mp3", "Part 2_Listening_16.mp3", "Part 2_Listening_17.mp3", "Part 2_Listening_18.mp3"],
     2: ["Part 1_Vocabulary_7.mp3", "Part 1_Vocabulary_8.mp3", "Part 1_Vocabulary_9.mp3", "Part 2_Listening_13.mp3", "Part 2_Listening_14.mp3", "Part 2_Listening_15.mp3", "Part 2_Listening_16.mp3", "Part 2_Listening_17.mp3", "Part 2_Listening_18.mp3"],
     3: ["Part 1_Vocabulary_7.mp3", "Part 1_Vocabulary_8.mp3", "Part 1_Vocabulary_9.mp3", "Part 2_Listening_13.mp3", "Part 2_Listening_14.mp3", "Part 2_Listening_15.mp3", "Part 2_Listening_16.mp3", "Part 2_Listening_17.mp3", "Part 2_Listening_18.mp3"],
+    4: ["Part 1_Vocabulary_7.mp3", "Part 1_Vocabulary_8.mp3", "Part 1_Vocabulary_9.mp3", "Part 2_Listening_13.mp3", "Part 2_Listening_14.mp3", "Part 2_Listening_15.mp3", "Part 2_Listening_16.mp3", "Part 2_Listening_17.mp3", "Part 2_Listening_18.mp3"],
   },
   "Here We Go!": {
     1: ["Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 1 - 7.mp3", "Part 1 - 8.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 2 - 17.mp3", "Part 2 - 18.mp3", "Part 2 - 19.mp3", "Part 2 - 20.mp3", "Part 2 - 21.mp3", "Part 2 - 22.mp3", "Part 3 - 27.mp3", "Part 3 - 28.mp3", "Part 3 - 29.mp3", "Part 3 - 30.mp3"],
@@ -975,6 +976,7 @@ const AUDIO_LIBRARY = {
     1: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
     2: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
     3: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
+    4: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
   },
   "Where's Coco?": {
     1: ["Part 1 - 4.mp3", "Part 1 - 5.mp3", "Part 1 - 6.mp3", "Part 2 - 11.mp3", "Part 2 - 12.mp3", "Part 2 - 13.mp3", "Part 2 - 14.mp3", "Part 2 - 15.mp3", "Part 2 - 16.mp3", "Part 3 - 17.mp3", "Part 3 - 18.mp3", "Part 3 - 19.mp3", "Part 3 - 20.mp3", "Part 3 - 21.mp3", "Part 3 - 22.mp3"],
@@ -1017,7 +1019,7 @@ const EXAM_ANSWER_SLUG = {
 const EXAM_ANSWER_LEVELS = {
   "Baby Bird's Adventure": [1, 2, 3, 4],
   "Daily Talk L1": [1, 2, 3, 4],
-  "Daily Talk L2": [1, 2, 3],
+  "Daily Talk L2": [1, 2, 3, 4],
   "Here We Go!": [1, 2, 3, 4],
   "Listen to Me! L1": [1, 2, 3],
   "Mr.Grammar": [1, 2, 3, 4],
@@ -1027,7 +1029,7 @@ const EXAM_ANSWER_LEVELS = {
   "Read Right L1": [1, 2, 3, 4],
   "Read Right L2": [1, 2, 3, 4],
   "Susie's Day": [1, 2, 3, 4],
-  "What Do You Do?": [1, 2, 3],
+  "What Do You Do?": [1, 2, 3, 4],
   "Where's Coco?": [1, 2, 3, 4],
 };
 function examUrl(textbook, level) {
@@ -1057,6 +1059,7 @@ const EXAM_FILENAMES = {
     1: "Exam_DTL2_1.pdf",
     2: "Exam_DTL2_2.pdf",
     3: "Exam_DTL2_3.pdf",
+    4: "Exam_DTL2_4.pdf",
   },
   "Here We Go!": {
     1: "Exam_HWG_1.pdf",
@@ -1114,6 +1117,7 @@ const EXAM_FILENAMES = {
     1: "Exam_WDYD_1.pdf",
     2: "Exam_WDYD_2.pdf",
     3: "Exam_WDYD_3.pdf",
+    4: "Exam_WDYD_4.pdf",
   },
   "Where's Coco?": {
     1: "Exam_WC_1.pdf",
@@ -1139,6 +1143,7 @@ const ANSWER_FILENAMES = {
     1: "Answers_DTL2_1.pdf",
     2: "Answers_DTL2_2.pdf",
     3: "Answers_DTL2_3.pdf",
+    4: "Answers_DTL2_4.pdf",
   },
   "Here We Go!": {
     1: "Answers_HWG_1.pdf",
@@ -1196,6 +1201,7 @@ const ANSWER_FILENAMES = {
     1: "Answers_WDYD_1.pdf",
     2: "Answers_WDYD_2.pdf",
     3: "Answers_WDYD_3.pdf",
+    4: "Answers_WDYD_4.pdf",
   },
   "Where's Coco?": {
     1: "Answers_WC_1.pdf",
